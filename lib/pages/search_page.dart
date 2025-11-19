@@ -125,11 +125,11 @@ class SearchPage extends StatelessWidget {
               runSpacing: 8,
               children: [
                 ...[
-                  'Adidas',
-                  'Nike',
+                  'Adinda',
+                  'Nikel',
                   'Polo Ralph Lauren',
                   'New Balance',
-                  'Conversee',
+                  'Converse',
                   'The North Face',
                   'Stussy',
                   'MLB',
