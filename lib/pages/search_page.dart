@@ -129,7 +129,7 @@ class SearchPage extends StatelessWidget {
                   'Nike',
                   'Polo Ralph Lauren',
                   'New Balance',
-                  'Converse',
+                  'Conversee',
                   'The North Face',
                   'Stussy',
                   'MLB',
