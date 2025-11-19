@@ -38,7 +38,7 @@ class SearchPage extends StatelessWidget {
               title: const Text('Explore item terbaru'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                // Nanti bisa navigasi ke halaman explore
+                
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Explore item terbaru')),
                 );
