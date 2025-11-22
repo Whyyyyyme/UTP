@@ -6,20 +6,52 @@ class InboxPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Inbox Page'), backgroundColor: Colors.purple),
-      body: Center(
+      appBar: AppBar(
+        title: const Text('Inbox Page'),
+        backgroundColor: Colors.grey,
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              'Inbox Page',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 20),
-            Text(
+            const SizedBox(height: 10),
+
+            const Text(
               'Pesan dan notifikasi akan muncul di sini',
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
+            const SizedBox(height: 20),
+
+            ListView.separated(
+              itemCount: 5,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                return Container(
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 200),
+
+            Container(
+              height: 30,
+              width: 400,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+
+            const SizedBox(height: 600),
           ],
         ),
       ),
