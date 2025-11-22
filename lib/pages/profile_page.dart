@@ -111,4 +111,4 @@ class ProfilePage extends StatelessWidget {
       onTap: () {},
     );
   }
-}
+}// End of ProfilePage class
