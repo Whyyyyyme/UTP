@@ -42,4 +42,4 @@ class ProfilePage extends StatelessWidget {
       ),
     );
   }
-}
+} //End Stream
