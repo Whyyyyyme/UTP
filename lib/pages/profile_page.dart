@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_pages/shop_profile_screen.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -7,7 +8,10 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.bold,),),
+        title: const Text(
+          'Profile',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
       ),
       body: ListView(
@@ -19,11 +23,16 @@ class ProfilePage extends StatelessWidget {
               backgroundColor: Colors.grey[200],
               child: Icon(Icons.person, color: Colors.grey[600]),
             ),
-            title: const Text('Makarimu Sa'),
+            title: const Text('Nama user'),
             subtitle: const Text('Lihat profil'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // Navigasi ke halaman profil lengkap
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ShopProfileScreen(),
+                ),
+              );
             },
           ),
 
@@ -36,18 +45,26 @@ class ProfilePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Center(
-              child: Text(
-                'Banner',
-                style: TextStyle(color: Colors.grey),
-              ),
+              child: Text('Banner', style: TextStyle(color: Colors.grey)),
             ),
           ),
 
           // Menu Favorit
-          _buildMenuTile(
-            icon: Icons.favorite_border,
-            title: 'Favorit',
-          ),
+
+ListTile(
+  leading: const Icon(Icons.favorite_border),
+  title: const Text('Favorit'),
+  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+  
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EmptyLikesTab(), 
+      ),
+    );
+  },
+),
 
           // Menu Wallet dengan saldo
           ListTile(
@@ -65,28 +82,16 @@ class ProfilePage extends StatelessWidget {
           ),
 
           // Menu Pesanan
-          _buildMenuTile(
-            icon: Icons.message_outlined,
-            title: 'Pesanan',
-          ),
+          _buildMenuTile(icon: Icons.message_outlined, title: 'Pesanan'),
 
           // Menu Settings
-          _buildMenuTile(
-            icon: Icons.settings_outlined,
-            title: 'Settings',
-          ),
+          _buildMenuTile(icon: Icons.settings_outlined, title: 'Settings'),
 
           // Menu Personalisasi
-          _buildMenuTile(
-            icon: Icons.tune,
-            title: 'Personalisasi',
-          ),
+          _buildMenuTile(icon: Icons.tune, title: 'Personalisasi'),
 
           // Menu Share Shop
-          _buildMenuTile(
-            icon: Icons.share_outlined,
-            title: 'Share shop',
-          ),
+          _buildMenuTile(icon: Icons.share_outlined, title: 'Share shop'),
 
           // Mode Liburan (Switch)
           SwitchListTile.adaptive(
@@ -96,7 +101,10 @@ class ProfilePage extends StatelessWidget {
             onChanged: (bool value) {
               // Handle mode liburan toggle
             },
-            secondary: Icon(Icons.notifications_outlined, color: Colors.grey[600]),
+            secondary: Icon(
+              Icons.notifications_outlined,
+              color: Colors.grey[600],
+            ),
           ),
         ],
       ),

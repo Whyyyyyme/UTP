@@ -8,24 +8,34 @@ class SearchPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Container(
+          height: 50,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: Colors.grey[200],
             borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+            color: const Color.fromARGB(255, 0, 0, 0),
+            width: 2.0,
+            ),
           ),
           child: const TextField(
+            textAlignVertical: TextAlignVertical.center,
             decoration: InputDecoration(
               hintText: 'Cari disini yuk!!!',
               border: InputBorder.none,
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: Icon(Icons.search_outlined),
             ),
           ),
         ),
-        actions: [
-          IconButton(
+              actions: [
+        Container(
+        margin: EdgeInsets.only(right: 27),
+         child: IconButton(
+            iconSize: 30,
             icon: const Icon(Icons.shopping_bag_outlined),
             onPressed: () {},
           ),
+        ),
         ],
       ),
       body: SingleChildScrollView(
