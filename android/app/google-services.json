@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "971423117270",
+    "project_id": "ta-mopro-92a89",
+    "storage_bucket": "ta-mopro-92a89.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:971423117270:android:f5a4da6d1f282ba767be77",
+        "android_client_info": {
+          "package_name": "com.example.prelovedly"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgy4A1jauJ01_eD7GpCKBjojySfFJx1T0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
