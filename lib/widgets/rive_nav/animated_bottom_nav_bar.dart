@@ -1,4 +1,4 @@
-// lib/widgets/rive_nav/animated_bottom_nav_bar.dart
+
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 

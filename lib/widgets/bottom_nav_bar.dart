@@ -17,11 +17,11 @@ class BottomNavBar extends StatelessWidget {
       onTap: onTabTapped,
       type: BottomNavigationBarType.fixed,
       items: [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-        BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Jual'),
-        BottomNavigationBarItem(icon: Icon(Icons.inbox), label: 'Inbox'),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        BottomNavigationBarItem(icon: Icon(Icons.home)),
+        BottomNavigationBarItem(icon: Icon(Icons.search)),
+        BottomNavigationBarItem(icon: Icon(Icons.add)),
+        BottomNavigationBarItem(icon: Icon(Icons.inbox)),
+        BottomNavigationBarItem(icon: Icon(Icons.person)),
       ],
     );
   }
