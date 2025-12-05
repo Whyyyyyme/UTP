@@ -1,7 +1,4 @@
-
 import 'package:flutter/material.dart';
-import 'package:rive/rive.dart';
-
 import '../../rive/menu.dart';
 import '../../rive/rive_utils.dart';
 import 'btm_nav_item.dart';

@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:prelovedly/pages/Register_pages/register_email.dart';
 import 'package:prelovedly/pages/home_page.dart';
-import 'register_page.dart';
 import 'package:prelovedly/services/auth_services.dart';
 
 class LoginPage extends StatefulWidget {
@@ -17,6 +17,65 @@ class _LoginPageState extends State<LoginPage> {
 
   String _email = '';
   String _password = '';
+  bool _isLoading = false;
+  bool _obscure = true;
+
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final email = _email.trim();
+      final password = _password.trim();
+
+      User? user = await _auth.signIn(email, password);
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (user != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login gagal! Periksa email/password.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      String message = 'Terjadi kesalahan saat login';
+
+      if (e.code == 'user-not-found') {
+        message = 'Email belum terdaftar';
+      } else if (e.code == 'wrong-password') {
+        message = 'Password salah';
+      } else if (e.code == 'invalid-email') {
+        message = 'Format email tidak valid';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,88 +87,65 @@ class _LoginPageState extends State<LoginPage> {
           key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   border: OutlineInputBorder(),
                 ),
-                validator: (val) => val!.isEmpty ? 'Masukkan email' : null,
+                keyboardType: TextInputType.emailAddress,
+                validator: (val) => (val == null || val.trim().isEmpty)
+                    ? 'Masukkan email'
+                    : null,
                 onChanged: (val) => setState(() => _email = val),
               ),
               const SizedBox(height: 15),
               TextFormField(
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: _obscure,
+                decoration: InputDecoration(
                   labelText: 'Password',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscure ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscure = !_obscure);
+                    },
+                  ),
                 ),
-                validator: (val) =>
-                    val!.length < 6 ? 'Password minimal 6 karakter' : null,
+                validator: (val) => (val == null || val.length < 6)
+                    ? 'Password minimal 6 karakter'
+                    : null,
                 onChanged: (val) => setState(() => _password = val),
               ),
               const SizedBox(height: 25),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      // Tampilkan loading (opsional)
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) =>
-                            const Center(child: CircularProgressIndicator()),
-                      );
-
-                      try {
-                        User? user = await _auth.signIn(_email, _password);
-
-                        // Tutup loading
-                        Navigator.pop(context);
-
-                        if (user != null) {
-                          // Login sukses → ke halaman utama
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => HomePage()),
-                          );
-                        } else {
-                          // Login gagal
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Login gagal! Periksa email/password.',
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        // Tutup loading jika ada error
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Terjadi kesalahan: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Login'),
+                  onPressed: _isLoading ? null : _handleLogin,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Login'),
                 ),
               ),
               const SizedBox(height: 15),
               TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RegisterPage(),
-                    ),
-                  );
-                },
+                onPressed: _isLoading
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EmailRegisterPage(),
+                          ),
+                        );
+                      },
                 child: const Text('Belum punya akun? Daftar di sini'),
               ),
             ],

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ShopProfileScreen extends StatefulWidget {
-  const ShopProfileScreen({super.key});
+  final int initialTabIndex;
+  const ShopProfileScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<ShopProfileScreen> createState() => _ShopProfileScreenState();
 }
 
 class _ShopProfileScreenState extends State<ShopProfileScreen> {
-  // --- START: SEMUA FUNGSI HELPER HARUS ADA DI DALAM CLASS STATE ---
+  Widget _buildShopTab(String nama) {
+    final String initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
 
-  Widget _buildShopTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -25,10 +28,10 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                   shape: BoxShape.circle,
                   color: Colors.orange,
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
-                    'M',
-                    style: TextStyle(
+                    initial,
+                    style: const TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -41,9 +44,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Nama Lengkap user',
-                      style: TextStyle(
+                    Text(
+                      nama,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -52,8 +55,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: const [
-                        // Menggunakan StatItemWidget (Diasumsikan sudah diubah ke class)
-                        StatItemWidget(number: '0', label: 'produk'), 
+                        StatItemWidget(number: '0', label: 'produk'),
                         StatItemWidget(number: '0', label: 'followers'),
                         StatItemWidget(number: '0', label: 'following'),
                       ],
@@ -76,7 +78,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    // TODO: arahkan ke halaman Edit Profile
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey[200],
                     foregroundColor: Colors.black,
@@ -90,7 +94,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    // TODO: arahkan ke halaman Upload Produk
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey[200],
                     foregroundColor: Colors.black,
@@ -104,23 +110,15 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
             ],
           ),
           const SizedBox(height: 40),
-          // Empty State
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/eyes.png', 
-                  width: 100,
-                  height: 100,
-                ),
+                Image.asset('assets/eyes.png', width: 100, height: 100),
                 const SizedBox(height: 16),
                 const Text(
                   'Belum ada item',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -151,7 +149,10 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
                 title: const Text('Edit profil'),
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  // TODO: arahkan ke Edit Profile
+                  Navigator.pop(context);
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.cancel_outlined),
@@ -164,76 +165,109 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
       },
     );
   }
-  // --- END: SEMUA FUNGSI HELPER ADA DI DALAM CLASS STATE ---
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: const Text('Nama User'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.more_vert),
-              onPressed: () {
-                _showMenuBottomSheet(context);
-              },
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return const Scaffold(body: Center(child: Text('Kamu belum login')));
+    }
+
+    final userDocStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots();
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: userDocStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: const Text('Profile'),
+              centerTitle: true,
             ),
-          ],
-          centerTitle: true,
-          bottom: const TabBar(
-            labelStyle: TextStyle(fontWeight: FontWeight.bold),
-            tabs: [
-              Tab(text: 'Shop'),
-              Tab(text: 'Likes'),
-              Tab(text: 'Reviews'),
-            ],
+            body: const Center(child: Text('Data profil belum tersedia')),
+          );
+        }
+
+        final data = snapshot.data!.data()!;
+        final String nama = (data['nama'] ?? 'User').toString();
+        final String username = (data['username'] ?? '').toString();
+
+        final int initialIndex =
+            (widget.initialTabIndex < 0 || widget.initialTabIndex > 2)
+            ? 0
+            : widget.initialTabIndex;
+
+        return DefaultTabController(
+          length: 3,
+          initialIndex: initialIndex,
+          child: Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
+              // USERNAME HANYA DI SINI
+              title: Text(username.isNotEmpty ? username : nama),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () {
+                    _showMenuBottomSheet(context);
+                  },
+                ),
+              ],
+              centerTitle: true,
+              bottom: const TabBar(
+                labelStyle: TextStyle(fontWeight: FontWeight.bold),
+                tabs: [
+                  Tab(text: 'Shop'),
+                  Tab(text: 'Likes'),
+                  Tab(text: 'Reviews'),
+                ],
+              ),
+            ),
+            body: TabBarView(
+              children: [
+                _buildShopTab(nama),
+                const EmptyLikesTab(),
+                const EmptyReviewsTab(),
+              ],
+            ),
           ),
-        ),
-        body: TabBarView(
-          children: [
-            // --- SHOP TAB (Pemanggilan fungsi yang didefinisikan di atas) ---
-            _buildShopTab(), 
-            // --- LIKES TAB (Class StatelessWidget) ---
-            const EmptyLikesTab(),
-            // --- REVIEWS TAB (Diasumsikan sudah diubah menjadi class) ---
-            const EmptyReviewsTab(), // Menggunakan class untuk konsistensi
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
-// --- WIDGET CLASS YANG SEHARUSNYA DITEMPATKAN DI LUAR CLASS STATE ---
-// (Bisa di file yang sama, tapi lebih baik di file terpisah)
-
 class EmptyLikesTab extends StatelessWidget {
   const EmptyLikesTab({super.key});
-  // ... (Isi widget EmptyLikesTab) ...
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/heart_message.png', 
-            width: 100,
-            height: 100,
-          ),
+          Image.asset('assets/heart_message.png', width: 100, height: 100),
           const SizedBox(height: 16),
           const Text(
             'Belum ada likes',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -243,25 +277,18 @@ class EmptyLikesTab extends StatelessWidget {
 
 class EmptyReviewsTab extends StatelessWidget {
   const EmptyReviewsTab({super.key});
-  // ... (Isi widget _buildReviewsTab yang diubah menjadi class) ...
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.star_border,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.star_border, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           const Text(
             'Belum ada ulasan',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -274,25 +301,16 @@ class StatItemWidget extends StatelessWidget {
   final String label;
 
   const StatItemWidget({super.key, required this.number, required this.label});
-  // ... (Isi widget _statItem yang diubah menjadi class) ...
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Text(
           number,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }
