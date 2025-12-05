@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import '../widgets/bottom_nav_bar.dart';
+// import '../widgets/bottom_nav_bar.dart'; // ini bisa dihapus kalau sudah tidak dipakai
+import '../widgets/rive_nav/animated_bottom_nav_bar.dart';
+
 import 'search_page.dart';
 import 'jual_page.dart';
 import 'inbox_page.dart';
 import 'profile_page.dart';
+// dst...
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -33,9 +37,9 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_currentIndex],
-      bottomNavigationBar: BottomNavBar(
+      bottomNavigationBar: AnimatedBottomNavBarUTP(
         currentIndex: _currentIndex,
-        onTabTapped: _onTabTapped,
+        onIndexChanged: _onTabTapped,
       ),
     );
   }
