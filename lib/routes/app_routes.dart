@@ -8,5 +8,7 @@ abstract class Routes {
   static const registerPassword = '/register-password';
   static const home = '/home';
   static const profile = '/profile';
+  static const ShopProfile = '/shop-profile';
   static const settings = '/settings';
+  static const editProfile = '/edit-profile';
 }

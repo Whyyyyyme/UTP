@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/routes/app_routes.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -33,13 +34,10 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.person_outline,
                 label: 'Edit profil',
                 onTap: () {
-                  Get.snackbar(
-                    'Edit profil',
-                    'Fitur ini belum tersedia',
-                    snackPosition: SnackPosition.BOTTOM,
-                  );
+                  Get.toNamed(Routes.editProfile);
                 },
               ),
+
               const Divider(height: 1),
               _SettingsItem(
                 icon: Icons.settings_outlined,

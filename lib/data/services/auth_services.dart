@@ -100,4 +100,11 @@ class AuthService {
 
     return UserModel.fromMap(snap.data() as Map<String, dynamic>);
   }
+
+  Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
+    await _db.collection('users').doc(uid).update({
+      ...data,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
 }

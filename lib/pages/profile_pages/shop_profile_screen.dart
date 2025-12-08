@@ -2,12 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/routes/app_routes.dart';
 
 class ShopProfileScreen extends StatelessWidget {
   final int initialTabIndex;
-  const ShopProfileScreen({super.key, this.initialTabIndex = 0});
 
-  Widget _buildShopTab(String nama) {
+  ShopProfileScreen({super.key, this.initialTabIndex = 0});
+
+  /// state kecil buat expand/collapse bio
+  final RxBool showFullBio = false.obs;
+
+  // ==== BIO SECTION DENGAN "LIHAT SEMUA" ====
+  Widget _buildBioSection(String bioRaw) {
+    final String bio = bioRaw.trim().isEmpty ? 'Tidak ada bio' : bioRaw.trim();
+    final bool isLong = bio.length > 60;
+
+    return Obx(() {
+      final bool expanded = showFullBio.value;
+
+      final String displayText = (isLong && !expanded)
+          ? bio.substring(0, 30) + '...'
+          : bio;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            displayText,
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+          ),
+          if (isLong)
+            TextButton(
+              onPressed: () {
+                showFullBio.value = !showFullBio.value;
+              },
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                expanded ? 'Sembunyikan' : 'Lihat semua',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+
+  // ==== TAB SHOP ====
+  Widget _buildShopTab(String nama, String bio) {
     final String initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
 
     return SingleChildScrollView(
@@ -15,6 +64,7 @@ class ShopProfileScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Avatar + nama + stats
           Row(
             children: [
               Container(
@@ -61,21 +111,30 @@ class ShopProfileScreen extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 16),
+
           // Rating Stars
           Row(
             children: List.generate(5, (index) {
               return Icon(Icons.star_border, color: Colors.grey[400]);
             }),
           ),
+
+          const SizedBox(height: 8),
+
+          // === BIO DENGAN LIHAT SEMUA ===
+          _buildBioSection(bio),
+
           const SizedBox(height: 24),
+
           // Buttons
           Row(
             children: [
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    // TODO: arahkan ke halaman Edit Profile
+                    Get.toNamed(Routes.editProfile);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey[200],
@@ -105,7 +164,9 @@ class ShopProfileScreen extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 40),
+
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -146,8 +207,7 @@ class ShopProfileScreen extends StatelessWidget {
                 leading: const Icon(Icons.edit_outlined),
                 title: const Text('Edit profil'),
                 onTap: () {
-                  // TODO: arahkan ke Edit Profile
-                  Navigator.pop(context);
+                  Get.toNamed(Routes.editProfile);
                 },
               ),
               ListTile(
@@ -175,6 +235,7 @@ class ShopProfileScreen extends StatelessWidget {
 
       final String nama = profile.nama;
       final String username = profile.username;
+      final String bio = profile.bio;
 
       final int initialIndex = (initialTabIndex < 0 || initialTabIndex > 2)
           ? 0
@@ -210,7 +271,7 @@ class ShopProfileScreen extends StatelessWidget {
           ),
           body: TabBarView(
             children: [
-              _buildShopTab(nama),
+              _buildShopTab(nama, bio),
               const EmptyLikesTab(),
               const EmptyReviewsTab(),
             ],

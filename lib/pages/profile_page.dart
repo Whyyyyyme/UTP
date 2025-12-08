@@ -55,7 +55,7 @@ class ProfilePage extends StatelessWidget {
               subtitle: const Text('Lihat profil'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                Get.to(() => const ShopProfileScreen());
+                Get.toNamed(Routes.ShopProfile);
               },
             ),
 
@@ -77,7 +77,7 @@ class ProfilePage extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
                 Get.to(
-                  () => const ShopProfileScreen(
+                  () => ShopProfileScreen(
                     initialTabIndex: 1, // tab Likes
                   ),
                 );

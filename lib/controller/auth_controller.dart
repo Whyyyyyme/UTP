@@ -96,4 +96,36 @@ class AuthController extends GetxController {
         return 'Terjadi kesalahan, coba lagi ($code)';
     }
   }
+
+  Future<void> updateProfile({
+    String? username,
+    String? nama,
+    String? bio,
+  }) async {
+    final current = user.value;
+    if (current == null) return;
+
+    final Map<String, dynamic> data = {};
+    if (username != null) data['username'] = username;
+    if (nama != null) data['nama'] = nama;
+    if (bio != null) data['bio'] = bio;
+
+    if (data.isEmpty) return;
+
+    try {
+      isLoading.value = true;
+      errorMessage.value = null;
+
+      await _authService.updateUserProfile(current.id, data);
+
+      // refresh profil dari Firestore
+      final updated = await _authService.getUserProfile(current.id);
+      user.value = updated;
+    } catch (e) {
+      errorMessage.value = 'Gagal mengubah profil';
+      Get.snackbar('Error', errorMessage.value!);
+    } finally {
+      isLoading.value = false;
+    }
+  }
 }
