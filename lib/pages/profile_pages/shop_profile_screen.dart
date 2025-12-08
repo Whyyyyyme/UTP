@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
 
-class ShopProfileScreen extends StatefulWidget {
+import 'package:prelovedly/controller/auth_controller.dart';
+
+class ShopProfileScreen extends StatelessWidget {
   final int initialTabIndex;
   const ShopProfileScreen({super.key, this.initialTabIndex = 0});
 
-  @override
-  State<ShopProfileScreen> createState() => _ShopProfileScreenState();
-}
-
-class _ShopProfileScreenState extends State<ShopProfileScreen> {
   Widget _buildShopTab(String nama) {
     final String initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
 
@@ -168,89 +164,60 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final authC = Get.find<AuthController>();
 
-    if (user == null) {
-      return const Scaffold(body: Center(child: Text('Kamu belum login')));
-    }
+    return Obx(() {
+      final profile = authC.user.value;
 
-    final userDocStream = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .snapshots();
+      if (profile == null) {
+        return const Scaffold(body: Center(child: Text('Kamu belum login')));
+      }
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: userDocStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+      final String nama = profile.nama;
+      final String username = profile.username;
 
-        if (!snapshot.hasData || !snapshot.data!.exists) {
-          return Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: const Text('Profile'),
-              centerTitle: true,
+      final int initialIndex = (initialTabIndex < 0 || initialTabIndex > 2)
+          ? 0
+          : initialTabIndex;
+
+      return DefaultTabController(
+        length: 3,
+        initialIndex: initialIndex,
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Get.back(),
             ),
-            body: const Center(child: Text('Data profil belum tersedia')),
-          );
-        }
-
-        final data = snapshot.data!.data()!;
-        final String nama = (data['nama'] ?? 'User').toString();
-        final String username = (data['username'] ?? '').toString();
-
-        final int initialIndex =
-            (widget.initialTabIndex < 0 || widget.initialTabIndex > 2)
-            ? 0
-            : widget.initialTabIndex;
-
-        return DefaultTabController(
-          length: 3,
-          initialIndex: initialIndex,
-          child: Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
+            title: Text(username.isNotEmpty ? username : nama),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.more_vert),
+                onPressed: () {
+                  _showMenuBottomSheet(context);
+                },
               ),
-              // USERNAME HANYA DI SINI
-              title: Text(username.isNotEmpty ? username : nama),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () {
-                    _showMenuBottomSheet(context);
-                  },
-                ),
-              ],
-              centerTitle: true,
-              bottom: const TabBar(
-                labelStyle: TextStyle(fontWeight: FontWeight.bold),
-                tabs: [
-                  Tab(text: 'Shop'),
-                  Tab(text: 'Likes'),
-                  Tab(text: 'Reviews'),
-                ],
-              ),
-            ),
-            body: TabBarView(
-              children: [
-                _buildShopTab(nama),
-                const EmptyLikesTab(),
-                const EmptyReviewsTab(),
+            ],
+            centerTitle: true,
+            bottom: const TabBar(
+              labelStyle: TextStyle(fontWeight: FontWeight.bold),
+              tabs: [
+                Tab(text: 'Shop'),
+                Tab(text: 'Likes'),
+                Tab(text: 'Reviews'),
               ],
             ),
           ),
-        );
-      },
-    );
+          body: TabBarView(
+            children: [
+              _buildShopTab(nama),
+              const EmptyLikesTab(),
+              const EmptyReviewsTab(),
+            ],
+          ),
+        ),
+      );
+    });
   }
 }
 

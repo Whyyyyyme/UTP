@@ -1,68 +1,40 @@
 import 'package:flutter/material.dart';
-
+import 'package:get/get.dart';
+import 'package:prelovedly/controller/register_controller.dart';
 import 'register_nama.dart';
 import 'register.dart';
 
-class EmailRegisterPage extends StatefulWidget {
+class EmailRegisterPage extends StatelessWidget {
   const EmailRegisterPage({super.key});
 
   @override
-  State<EmailRegisterPage> createState() => _EmailRegisterPageState();
-}
-
-class _EmailRegisterPageState extends State<EmailRegisterPage> {
-  final TextEditingController _emailController = TextEditingController();
-  String? _errorText;
-
-  bool get _isValid {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) return false;
-    return email.contains('@');
-  }
-
-  void _onNext() {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      setState(() => _errorText = 'Email is required');
-      return;
-    }
-    if (!email.contains('@')) {
-      setState(() => _errorText = 'Email tidak valid');
-      return;
-    }
-    setState(() => _errorText = null);
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => NameRegisterPage(email: email)),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return RegisterScaffold(
-      titleQuestion: 'Apa email kamu?',
-      isValid: _isValid,
-      onNext: _onNext,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'Email address',
-              errorText: _errorText,
+    // Pastikan cuma dibuat sekali
+    final controller = Get.put(RegisterController());
+
+    return Obx(() {
+      return RegisterScaffold(
+        titleQuestion: 'Apa email kamu?',
+        isValid: controller.isEmailValid, // sekarang bool, bukan RxBool
+        onNext: () {
+          if (controller.isEmailValid) {
+            Get.to(() => NameRegisterPage(email: controller.email.value));
+          }
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email address',
+                errorText: controller.emailError.value, // dari controller
+              ),
+              onChanged: controller.validateEmail,
             ),
-            onChanged: (_) {
-              if (_errorText != null) {
-                setState(() => _errorText = null);
-              }
-              setState(() {});
-            },
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }

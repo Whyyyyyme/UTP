@@ -1,95 +1,29 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:prelovedly/pages/Register_pages/register_email.dart';
-import 'package:prelovedly/pages/home_page.dart';
-import 'package:prelovedly/services/auth_services.dart';
+import 'package:get/get.dart';
+import 'package:prelovedly/controller/login_controller.dart';
+import 'Register_pages/register_email.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class LoginPage extends StatelessWidget {
+  LoginPage({super.key});
 
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final _formKey = GlobalKey<FormState>();
-  final AuthService _auth = AuthService();
-
-  String _email = '';
-  String _password = '';
-  bool _isLoading = false;
-  bool _obscure = true;
-
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final email = _email.trim();
-      final password = _password.trim();
-
-      User? user = await _auth.signIn(email, password);
-
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      if (user != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login gagal! Periksa email/password.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      String message = 'Terjadi kesalahan saat login';
-
-      if (e.code == 'user-not-found') {
-        message = 'Email belum terdaftar';
-      } else if (e.code == 'wrong-password') {
-        message = 'Password salah';
-      } else if (e.code == 'invalid-email') {
-        message = 'Format email tidak valid';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
+    final loginController = Get.put(LoginController());
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Login'), centerTitle: true),
+      appBar: AppBar(title: const Text('Login')),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Form(
-          key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
+                controller: _emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   border: OutlineInputBorder(),
@@ -98,56 +32,82 @@ class _LoginPageState extends State<LoginPage> {
                 validator: (val) => (val == null || val.trim().isEmpty)
                     ? 'Masukkan email'
                     : null,
-                onChanged: (val) => setState(() => _email = val),
               ),
               const SizedBox(height: 15),
-              TextFormField(
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscure ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() => _obscure = !_obscure);
-                    },
-                  ),
-                ),
-                validator: (val) => (val == null || val.length < 6)
-                    ? 'Password minimal 6 karakter'
-                    : null,
-                onChanged: (val) => setState(() => _password = val),
-              ),
-              const SizedBox(height: 25),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Login'),
-                ),
-              ),
-              const SizedBox(height: 15),
-              TextButton(
-                onPressed: _isLoading
-                    ? null
-                    : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EmailRegisterPage(),
-                          ),
-                        );
+
+              Obx(() {
+                return TextFormField(
+                  controller: _passwordController,
+                  obscureText: loginController.obscurePassword.value,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        loginController.obscurePassword.value
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        loginController.obscurePassword.value =
+                            !loginController.obscurePassword.value;
                       },
-                child: const Text('Belum punya akun? Daftar di sini'),
-              ),
+                    ),
+                  ),
+                  validator: (val) => (val == null || val.length < 6)
+                      ? 'Password minimal 6 karakter'
+                      : null,
+                );
+              }),
+
+              const SizedBox(height: 25),
+
+              Obx(() {
+                final isLoading = loginController.isLoading.value;
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isLoading
+                        ? null
+                        : () async {
+                            await loginController.login(
+                              _emailController.text.trim(),
+                              _passwordController.text.trim(),
+                            );
+                          },
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Login'),
+                  ),
+                );
+              }),
+
+              const SizedBox(height: 15),
+
+              Obx(() {
+                final isLoading = loginController.isLoading.value;
+                return TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () {
+                          Get.to(() => const EmailRegisterPage());
+                        },
+                  child: const Text('Belum punya akun? Daftar di sini'),
+                );
+              }),
+
+              const SizedBox(height: 8),
+
+              Obx(() {
+                final msg = loginController.errorMessage.value;
+                return msg.isNotEmpty
+                    ? Text(msg, style: const TextStyle(color: Colors.red))
+                    : const SizedBox.shrink();
+              }),
             ],
           ),
         ),

@@ -6,8 +6,6 @@ import 'search_page.dart';
 import 'jual_page.dart';
 import 'inbox_page.dart';
 import 'profile_page.dart';
-// dst...
-
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -60,8 +58,8 @@ class HomeContentPage extends StatelessWidget {
             color: Colors.grey[200],
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-            color: const Color.fromARGB(255, 0, 0, 0),
-            width: 2.0,
+              color: const Color.fromARGB(255, 0, 0, 0),
+              width: 2.0,
             ),
           ),
           child: const TextField(
@@ -73,18 +71,18 @@ class HomeContentPage extends StatelessWidget {
             ),
           ),
         ),
-              actions: [
-        Container(
-        margin: EdgeInsets.only(right: 27),
-         child: IconButton(
-            iconSize: 30,
-            icon: const Icon(Icons.shopping_bag_outlined),
-            onPressed: () {},
+        actions: [
+          Container(
+            margin: EdgeInsets.only(right: 27),
+            child: IconButton(
+              iconSize: 30,
+              icon: const Icon(Icons.shopping_bag_outlined),
+              onPressed: () {},
+            ),
           ),
-        ),
         ],
-        //search bar end
 
+        //search bar end
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
