@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-// import '../widgets/bottom_nav_bar.dart'; // ini bisa dihapus kalau sudah tidak dipakai
 import '../widgets/rive_nav/animated_bottom_nav_bar.dart';
 
 import 'search_page.dart';
-import 'jual_page.dart';
+import 'jual_page_check.dart';
 import 'inbox_page.dart';
 import 'profile_page.dart';
 
@@ -20,7 +19,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = [
     HomeContentPage(),
     SearchPage(),
-    JualPage(),
+    SellAddressIntroPage(),
     InboxPage(),
     ProfilePage(),
   ];

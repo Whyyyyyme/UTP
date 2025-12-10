@@ -13,4 +13,5 @@ abstract class Routes {
   static const editProfile = '/edit-profile';
   static const address = '/address';
   static const addAddress = '/add-address';
+  static const sellProduct = '/sell-product';
 }

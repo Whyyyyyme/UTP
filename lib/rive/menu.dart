@@ -1,5 +1,5 @@
 // lib/rive/menu.dart
-import 'rive_model.dart';
+import '../models/rive_model.dart';
 
 class Menu {
   final String title;

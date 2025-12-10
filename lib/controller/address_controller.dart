@@ -12,6 +12,8 @@ class AddressController extends GetxController {
   final isSaving = false.obs;
   final selectedRegion = ''.obs;
 
+  /// Koleksi alamat di bawah user:
+  /// users/{userId}/addresses
   CollectionReference<Map<String, dynamic>>? _userAddressCollection() {
     final auth = AuthController.to;
     final currentUser = auth.user.value;
@@ -20,6 +22,7 @@ class AddressController extends GetxController {
     return _db.collection('users').doc(currentUser.id).collection('addresses');
   }
 
+  /// Stream daftar alamat user (dipakai di AddressListPage)
   Stream<List<AddressModel>> userAddressesStream() {
     final col = _userAddressCollection();
     if (col == null) {
@@ -34,6 +37,23 @@ class AddressController extends GetxController {
         );
   }
 
+  /// Cek apakah user sudah punya minimal 1 alamat
+  Future<bool> hasAnyAddress() async {
+    try {
+      final col = _userAddressCollection();
+      if (col == null) return false;
+
+      final snap = await col.limit(1).get();
+      final has = snap.docs.isNotEmpty;
+      print('hasAnyAddress => $has');
+      return has;
+    } catch (e) {
+      print('hasAnyAddress ERROR: $e');
+      return false;
+    }
+  }
+
+  /// Simpan alamat baru ke users/{uid}/addresses
   Future<bool> saveNewAddress({
     required String receiverName,
     required String phone,
@@ -96,6 +116,7 @@ class AddressController extends GetxController {
     }
   }
 
+  /// Hapus alamat (dipanggil dari Dismissible di AddressListPage)
   Future<void> deleteAddress(AddressModel address) async {
     try {
       final col = _userAddressCollection();

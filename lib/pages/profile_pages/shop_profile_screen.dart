@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:prelovedly/controller/auth_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
@@ -55,131 +56,207 @@ class ShopProfileScreen extends StatelessWidget {
     });
   }
 
+  /// TAB SHOP – sekarang seluruh tab dibungkus StreamBuilder,
+  /// jadi stat di header + grid produk semuanya mengikuti data Firestore.
   Widget _buildShopTab({
+    required String userId,
     required String nama,
     required String bio,
     required String fotoProfilUrl,
   }) {
     final String initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('products')
+          .where('seller_id', isEqualTo: userId)
+          .orderBy('created_at', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final bool isLoading =
+            snapshot.connectionState == ConnectionState.waiting;
+
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Gagal memuat produk: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+
+        final products = docs
+            .map((d) => ShopProduct.fromDoc(d))
+            .toList(growable: false);
+
+        final published = products
+            .where((p) => !p.isDraft)
+            .toList(growable: false);
+        final drafts = products.where((p) => p.isDraft).toList(growable: false);
+        final allProducts = [...published, ...drafts];
+
+        final int productCount = published.length;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.orange,
-                backgroundImage: fotoProfilUrl.isNotEmpty
-                    ? NetworkImage(fotoProfilUrl)
-                    : null,
-                child: fotoProfilUrl.isNotEmpty
-                    ? null
-                    : Text(
-                        initial,
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+              // ============== HEADER PROFIL + STAT DINAMIS ==============
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.orange,
+                    backgroundImage: fotoProfilUrl.isNotEmpty
+                        ? NetworkImage(fotoProfilUrl)
+                        : null,
+                    child: fotoProfilUrl.isNotEmpty
+                        ? null
+                        : Text(
+                            initial,
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          nama,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nama,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        StatItemWidget(number: '0', label: 'produk'),
-                        StatItemWidget(number: '0', label: 'followers'),
-                        StatItemWidget(number: '0', label: 'following'),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            StatItemWidget(
+                              number: productCount.toString(),
+                              label: 'produk',
+                            ),
+                            const StatItemWidget(
+                              number: '0',
+                              label: 'followers',
+                            ),
+                            const StatItemWidget(
+                              number: '0',
+                              label: 'following',
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // rating dummy
+              Row(
+                children: List.generate(
+                  5,
+                  (index) => Icon(Icons.star_border, color: Colors.grey[400]),
                 ),
               ),
-            ],
-          ),
 
-          const SizedBox(height: 16),
+              const SizedBox(height: 8),
 
-          Row(
-            children: List.generate(5, (index) {
-              return Icon(Icons.star_border, color: Colors.grey[400]);
-            }),
-          ),
+              _buildBioSection(bio),
 
-          const SizedBox(height: 8),
+              const SizedBox(height: 24),
 
-          _buildBioSection(bio),
-
-          const SizedBox(height: 24),
-
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    Get.toNamed(Routes.editProfile);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[200],
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              // ============== TOMBOL EDIT & UPLOAD ==============
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.toNamed(Routes.editProfile);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Edit profil'),
                     ),
                   ),
-                  child: const Text('Edit profil'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: arahkan ke halaman Upload Produk
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[200],
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // langsung ke flow jual
+                        Get.toNamed(Routes.sellProduct);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Upload produk'),
                     ),
                   ),
-                  child: const Text('Upload produk'),
-                ),
+                ],
               ),
+
+              const SizedBox(height: 24),
+
+              // ============== GRID PRODUK / EMPTY STATE ==============
+              if (isLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (allProducts.isEmpty)
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/eyes.png', width: 100, height: 100),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Belum ada item',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: allProducts.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1,
+                  ),
+                  itemBuilder: (context, index) {
+                    final product = allProducts[index];
+                    return _ProductCard(product: product);
+                  },
+                ),
             ],
           ),
-
-          const SizedBox(height: 40),
-
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset('assets/eyes.png', width: 100, height: 100),
-                const SizedBox(height: 16),
-                const Text(
-                  'Belum ada item',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -232,6 +309,7 @@ class ShopProfileScreen extends StatelessWidget {
         return const Scaffold(body: Center(child: Text('Kamu belum login')));
       }
 
+      final String userId = profile.id;
       final String nama = profile.nama;
       final String username = profile.username;
       final String bio = profile.bio;
@@ -271,7 +349,12 @@ class ShopProfileScreen extends StatelessWidget {
           ),
           body: TabBarView(
             children: [
-              _buildShopTab(nama: nama, bio: bio, fotoProfilUrl: fotoProfilUrl),
+              _buildShopTab(
+                userId: userId,
+                nama: nama,
+                bio: bio,
+                fotoProfilUrl: fotoProfilUrl,
+              ),
               const EmptyLikesTab(),
               const EmptyReviewsTab(),
             ],
@@ -339,6 +422,99 @@ class StatItemWidget extends StatelessWidget {
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+      ],
+    );
+  }
+}
+
+/// Model sederhana untuk produk di tab Shop
+class ShopProduct {
+  final String id;
+  final String title;
+  final String imageUrl;
+  final int price;
+  final String status;
+
+  ShopProduct({
+    required this.id,
+    required this.title,
+    required this.imageUrl,
+    required this.price,
+    required this.status,
+  });
+
+  bool get isDraft => status == 'draft';
+
+  factory ShopProduct.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+
+    // 🔥 Ambil dari field "image_urls" (List<String>)
+    final List imageUrlsRaw = (data['image_urls'] as List?) ?? [];
+    final List<String> imageUrls = imageUrlsRaw
+        .map((e) => e.toString())
+        .toList();
+
+    final String firstImage =
+        (data['thumbnail_url'] as String?) ??
+        (data['image_url'] as String?) ??
+        (imageUrls.isNotEmpty ? imageUrls.first : '');
+
+    final dynamic priceRaw = data['price'];
+    final int price = priceRaw is int
+        ? priceRaw
+        : int.tryParse(priceRaw?.toString() ?? '0') ?? 0;
+
+    return ShopProduct(
+      id: doc.id,
+      title: data['title'] ?? '',
+      imageUrl: firstImage,
+      price: price,
+      status: data['status'] ?? 'draft',
+    );
+  }
+}
+
+/// Kartu produk di grid (dengan label DRAFT jika status draft)
+class _ProductCard extends StatelessWidget {
+  final ShopProduct product;
+
+  const _ProductCard({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.grey[200],
+            image: product.imageUrl.isNotEmpty
+                ? DecorationImage(
+                    image: NetworkImage(product.imageUrl),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+        ),
+        if (product.isDraft)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.black45,
+              ),
+              child: const Center(
+                child: Text(
+                  'DRAFT',
+                  style: TextStyle(
+                    color: Colors.yellow,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
