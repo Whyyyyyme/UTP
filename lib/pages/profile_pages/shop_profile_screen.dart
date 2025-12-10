@@ -9,19 +9,19 @@ class ShopProfileScreen extends StatelessWidget {
 
   ShopProfileScreen({super.key, this.initialTabIndex = 0});
 
-  /// state kecil buat expand/collapse bio
   final RxBool showFullBio = false.obs;
 
-  // ==== BIO SECTION DENGAN "LIHAT SEMUA" ====
   Widget _buildBioSection(String bioRaw) {
     final String bio = bioRaw.trim().isEmpty ? 'Tidak ada bio' : bioRaw.trim();
-    final bool isLong = bio.length > 60;
+
+    const int maxPreviewChars = 30;
+    final bool isLong = bio.length > maxPreviewChars;
 
     return Obx(() {
       final bool expanded = showFullBio.value;
 
       final String displayText = (isLong && !expanded)
-          ? bio.substring(0, 30) + '...'
+          ? bio.substring(0, maxPreviewChars) + '...'
           : bio;
 
       return Column(
@@ -55,8 +55,11 @@ class ShopProfileScreen extends StatelessWidget {
     });
   }
 
-  // ==== TAB SHOP ====
-  Widget _buildShopTab(String nama, String bio) {
+  Widget _buildShopTab({
+    required String nama,
+    required String bio,
+    required String fotoProfilUrl,
+  }) {
     final String initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
 
     return SingleChildScrollView(
@@ -64,26 +67,24 @@ class ShopProfileScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar + nama + stats
           Row(
             children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.orange,
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: Colors.orange,
+                backgroundImage: fotoProfilUrl.isNotEmpty
+                    ? NetworkImage(fotoProfilUrl)
+                    : null,
+                child: fotoProfilUrl.isNotEmpty
+                    ? null
+                    : Text(
+                        initial,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -114,7 +115,6 @@ class ShopProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Rating Stars
           Row(
             children: List.generate(5, (index) {
               return Icon(Icons.star_border, color: Colors.grey[400]);
@@ -123,12 +123,10 @@ class ShopProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // === BIO DENGAN LIHAT SEMUA ===
           _buildBioSection(bio),
 
           const SizedBox(height: 24),
 
-          // Buttons
           Row(
             children: [
               Expanded(
@@ -207,6 +205,7 @@ class ShopProfileScreen extends StatelessWidget {
                 leading: const Icon(Icons.edit_outlined),
                 title: const Text('Edit profil'),
                 onTap: () {
+                  Navigator.pop(context);
                   Get.toNamed(Routes.editProfile);
                 },
               ),
@@ -236,6 +235,7 @@ class ShopProfileScreen extends StatelessWidget {
       final String nama = profile.nama;
       final String username = profile.username;
       final String bio = profile.bio;
+      final String fotoProfilUrl = profile.fotoProfilUrl;
 
       final int initialIndex = (initialTabIndex < 0 || initialTabIndex > 2)
           ? 0
@@ -271,7 +271,7 @@ class ShopProfileScreen extends StatelessWidget {
           ),
           body: TabBarView(
             children: [
-              _buildShopTab(nama, bio),
+              _buildShopTab(nama: nama, bio: bio, fotoProfilUrl: fotoProfilUrl),
               const EmptyLikesTab(),
               const EmptyReviewsTab(),
             ],

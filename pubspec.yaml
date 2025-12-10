@@ -17,6 +17,10 @@ dependencies:
   cloud_firestore: ^6.1.0
   rive: ^0.13.0
   get: ^4.7.3
+  image_picker: ^1.2.1
+  firebase_storage: ^13.0.4
+  supabase_flutter: ^2.0.0
+  flutter_slidable: ^4.0.3
 
 dev_dependencies:
   flutter_test:

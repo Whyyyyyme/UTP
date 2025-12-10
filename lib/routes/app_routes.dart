@@ -11,4 +11,6 @@ abstract class Routes {
   static const ShopProfile = '/shop-profile';
   static const settings = '/settings';
   static const editProfile = '/edit-profile';
+  static const address = '/address';
+  static const addAddress = '/add-address';
 }

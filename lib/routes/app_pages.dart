@@ -1,7 +1,9 @@
 import 'package:get/get.dart';
+import 'package:prelovedly/pages/profile_pages/address/address_list_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile_page.dart';
 import 'package:prelovedly/pages/profile_pages/setting_page.dart';
 import 'package:prelovedly/pages/profile_pages/shop_profile_screen.dart';
+import 'package:prelovedly/pages/profile_pages/address/add_address_page.dart';
 
 import 'app_routes.dart';
 import 'package:prelovedly/pages/login_page.dart';
@@ -39,5 +41,7 @@ class AppPages {
     GetPage(name: Routes.ShopProfile, page: () => ShopProfileScreen()),
     GetPage(name: Routes.settings, page: () => const SettingsPage()),
     GetPage(name: Routes.editProfile, page: () => const EditProfilePage()),
+    GetPage(name: Routes.addAddress, page: () => AddAddressPage()),
+    GetPage(name: Routes.address, page: () => AddressListPage()),
   ];
 }

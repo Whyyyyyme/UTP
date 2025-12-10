@@ -1,19 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+
 import 'package:prelovedly/controller/auth_controller.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_bio_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_nama_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_username_page.dart';
 
-class EditProfilePage extends StatelessWidget {
+class EditProfilePage extends GetView<AuthController> {
   const EditProfilePage({super.key});
+
+  Future<void> _pickAndUploadPhoto() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (picked == null) return;
+
+      final success = await controller.updateProfilePhoto(picked);
+
+      if (success) {
+        Get.snackbar(
+          'Berhasil',
+          'Foto profil berhasil diperbarui',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      } else {
+        Get.snackbar(
+          'Error',
+          controller.errorMessage.value ?? 'Gagal mengubah foto profil',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Gagal mengubah foto profil: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final authC = Get.find<AuthController>();
-
     return Obx(() {
-      final u = authC.user.value;
+      final u = controller.user.value;
 
       if (u == null) {
         return const Scaffold(
@@ -22,16 +56,16 @@ class EditProfilePage extends StatelessWidget {
       }
 
       final String username = u.username.isNotEmpty ? u.username : '-';
-
       final String nama = u.nama.isNotEmpty ? u.nama : 'Tidak ada nama';
-
       final String bio = u.bio.isNotEmpty ? u.bio : 'Tidak ada bio';
 
       final String initial = username != '-' && username.isNotEmpty
-          ? username[0].toLowerCase()
+          ? username[0].toUpperCase()
           : (nama != 'Tidak ada nama' && nama.isNotEmpty
-                ? nama[0].toLowerCase()
-                : 'u');
+                ? nama[0].toUpperCase()
+                : 'U');
+
+      final bool hasPhoto = u.fotoProfilUrl.isNotEmpty;
 
       return Scaffold(
         backgroundColor: const Color(0xFFF3F4F6),
@@ -48,99 +82,127 @@ class EditProfilePage extends StatelessWidget {
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
+        body: Column(
           children: [
-            const SizedBox(height: 8),
-            // Avatar + tombol Edit
-            Column(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: Colors.pink,
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+            if (controller.isLoading.value)
+              const LinearProgressIndicator(minHeight: 2),
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const SizedBox(height: 8),
+
+                  Column(
+                    children: [
+                      CircleAvatar(
+                        key: ValueKey(u.fotoProfilUrl),
+                        radius: 40,
+                        backgroundColor: Colors.pink,
+                        backgroundImage: hasPhoto
+                            ? NetworkImage(u.fotoProfilUrl)
+                            : null,
+                        child: hasPhoto
+                            ? null
+                            : Text(
+                                initial,
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        nama,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      if (username != '-')
+                        Text(
+                          '@$username',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: controller.isLoading.value
+                            ? null
+                            : () => _pickAndUploadPhoto(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            'Edit',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  child: GestureDetector(
-                    onTap: () {
-                      Get.snackbar(
-                        'Edit foto',
-                        'Fitur edit foto belum tersedia',
-                        snackPosition: SnackPosition.BOTTOM,
-                      );
-                    },
-                    child: const Text(
-                      'Edit',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+
+                  const SizedBox(height: 24),
+
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Kartu putih dengan item-item
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  _ProfileRow(
-                    label: 'Username',
-                    value: username,
-                    onTap: () {
-                      Get.to(
-                        () => EditUsernamePage(
-                          initialUsername: username == '-' ? '' : username,
+                    child: Column(
+                      children: [
+                        _ProfileRow(
+                          label: 'Username',
+                          value: username,
+                          onTap: () {
+                            Get.to(
+                              () => EditUsernamePage(
+                                initialUsername: username == '-'
+                                    ? ''
+                                    : username,
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1),
-                  _ProfileRow(
-                    label: 'Name',
-                    value: nama,
-                    onTap: () {
-                      Get.to(() => const EditNamePage());
-                    },
-                  ),
-                  const Divider(height: 1),
-                  _ProfileRow(
-                    label: 'Bio',
-                    value: bio,
-                    isHint: bio == 'Tidak ada bio',
-                    onTap: () {
-                      Get.to(() => const EditBioPage());
-                    },
+                        const Divider(height: 1),
+                        _ProfileRow(
+                          label: 'Name',
+                          value: nama,
+                          onTap: () {
+                            Get.to(() => const EditNamePage());
+                          },
+                        ),
+                        const Divider(height: 1),
+                        _ProfileRow(
+                          label: 'Bio',
+                          value: bio,
+                          isHint: bio == 'Tidak ada bio',
+                          onTap: () {
+                            Get.to(() => const EditBioPage());
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

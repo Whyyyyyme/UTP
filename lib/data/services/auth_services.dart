@@ -1,10 +1,61 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:prelovedly/models/user_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  final supa.SupabaseClient _supabase = supa.Supabase.instance.client;
+
+  Future<fb.User?> signUp({
+    required String email,
+    required String password,
+    required String nama,
+    String? username,
+    String? bio,
+    String? alamat,
+  }) async {
+    final result = await _auth.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    final fb.User? user = result.user;
+
+    if (user != null) {
+      await createUserProfile(
+        uid: user.uid,
+        email: email,
+        nama: nama,
+        username: username,
+        bio: bio,
+        alamat: alamat,
+      );
+
+      try {
+        await _supabase.from('users').insert({
+          'uid': user.uid,
+          'email': email,
+          'nama': nama,
+          'username': username ?? '',
+          'bio': bio ?? '',
+          'alamat': alamat ?? '',
+          'no_telp': '',
+          'foto_profil_url': '',
+          'role': 'pembeli',
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      } catch (e) {
+        print("Supabase insert gagal: $e");
+      }
+    }
+
+    return user;
+  }
 
   Future<void> createUserProfile({
     required String uid,
@@ -23,82 +74,26 @@ class AuthService {
       'alamat': alamat ?? '',
       'no_telp': '',
       'foto_profil_url': '',
-      'tanggal_daftar': FieldValue.serverTimestamp(),
       'role': 'pembeli',
-      'jumlah_produk_diupload': 0,
-      'rating_rata': 0.0,
-      'total_transaksi_berhasil': 0,
-      'is_verified': false,
       'created_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),
     });
   }
 
-  /// REGISTER + auto buat profil
-  Future<User?> signUp({
-    required String email,
-    required String password,
-    required String nama,
-    String? username,
-    String? bio,
-    String? alamat,
-  }) async {
-    try {
-      final result = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      final user = result.user;
-
-      if (user != null) {
-        await createUserProfile(
-          uid: user.uid,
-          email: email,
-          nama: nama,
-          username: username,
-          bio: bio,
-          alamat: alamat,
-        );
-      }
-
-      return user;
-    } on FirebaseAuthException catch (e) {
-      print('AuthService signUp error: ${e.code} - ${e.message}');
-      rethrow;
-    } catch (e) {
-      print('AuthService signUp other error: $e');
-      rethrow;
-    }
+  Future<fb.User?> signIn(String email, String password) async {
+    final result = await _auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    return result.user;
   }
 
-  /// LOGIN
-  Future<User?> signIn(String email, String password) async {
-    try {
-      final result = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      return result.user;
-    } on FirebaseAuthException catch (e) {
-      print('AuthService signIn error: ${e.code} - ${e.message}');
-      rethrow;
-    } catch (e) {
-      print('AuthService signIn other error: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> signOut() async {
-    await _auth.signOut();
-  }
-
-  User? getCurrentUser() => _auth.currentUser;
+  Future<void> signOut() async => _auth.signOut();
 
   Future<UserModel?> getUserProfile(String uid) async {
     final snap = await _db.collection('users').doc(uid).get();
-    if (!snap.exists || snap.data() == null) return null;
-
-    return UserModel.fromMap(snap.data() as Map<String, dynamic>);
+    if (!snap.exists) return null;
+    return UserModel.fromMap(snap.data()!);
   }
 
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
@@ -106,5 +101,42 @@ class AuthService {
       ...data,
       'updated_at': FieldValue.serverTimestamp(),
     });
+
+    final supaData = Map<String, dynamic>.from(data);
+    supaData.removeWhere((key, value) => value is FieldValue);
+
+    try {
+      await _supabase.from('users').update(supaData).eq('uid', uid);
+    } catch (e) {
+      print('Supabase updateProfile gagal: $e');
+    }
+  }
+
+  Future<String> uploadProfilePhoto(String uid, XFile picked) async {
+    try {
+      final fileName = "$uid-${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+
+        await _supabase.storage
+            .from('profile_photos')
+            .uploadBinary(fileName, bytes);
+      } else {
+        final file = await picked.readAsBytes();
+        await _supabase.storage
+            .from('profile_photos')
+            .uploadBinary(fileName, file);
+      }
+
+      final publicUrl = _supabase.storage
+          .from('profile_photos')
+          .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (e) {
+      print("uploadProfilePhoto ERROR: $e");
+      rethrow;
+    }
   }
 }

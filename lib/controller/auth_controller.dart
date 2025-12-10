@@ -1,14 +1,34 @@
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+
 import 'package:prelovedly/models/user_model.dart';
 import 'package:prelovedly/data/services/auth_services.dart';
 
 class AuthController extends GetxController {
+  static AuthController get to => Get.find<AuthController>();
+
   final AuthService _authService = AuthService();
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   final user = Rxn<UserModel>();
   final isLoading = false.obs;
   final errorMessage = Rxn<String>();
+
+  @override
+  void onReady() async {
+    super.onReady();
+
+    final currentFirebaseUser = _firebaseAuth.currentUser;
+    if (currentFirebaseUser != null) {
+      try {
+        final profile = await _authService.getUserProfile(
+          currentFirebaseUser.uid,
+        );
+        user.value = profile;
+      } catch (_) {}
+    }
+  }
 
   Future<void> signUp({
     required String email,
@@ -69,12 +89,92 @@ class AuthController extends GetxController {
   }
 
   Future<void> signOut() async {
-    await _authService.signOut();
-    user.value = null;
-    Get.offAllNamed('/login');
+    try {
+      isLoading.value = true;
+      await _authService.signOut();
+      user.value = null;
+      errorMessage.value = null;
+      Get.offAllNamed('/login');
+    } catch (e) {
+      Get.snackbar('Error', 'Gagal logout, coba lagi!');
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   UserModel? getCurrentUser() => user.value;
+
+  Future<void> updateProfile({
+    String? username,
+    String? nama,
+    String? bio,
+    String? alamat,
+    String? noTelp,
+  }) async {
+    final current = user.value;
+    if (current == null) return;
+
+    final Map<String, dynamic> data = {};
+    if (username != null) data['username'] = username;
+    if (nama != null) data['nama'] = nama;
+    if (bio != null) data['bio'] = bio;
+    if (alamat != null) data['alamat'] = alamat;
+    if (noTelp != null) data['no_telp'] = noTelp;
+
+    if (data.isEmpty) return;
+
+    try {
+      isLoading.value = true;
+      errorMessage.value = null;
+
+      final uid = _firebaseAuth.currentUser?.uid ?? current.id;
+
+      await _authService.updateUserProfile(uid, data);
+
+      final updated = await _authService.getUserProfile(uid);
+      user.value = updated;
+    } catch (e) {
+      errorMessage.value = 'Gagal mengubah profil';
+      Get.snackbar('Error', errorMessage.value!);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> updateProfilePhoto(XFile picked) async {
+    final current = user.value;
+    if (current == null) {
+      errorMessage.value = 'User tidak ditemukan di controller';
+      return false;
+    }
+
+    try {
+      isLoading.value = true;
+      errorMessage.value = null;
+
+      final uid = _firebaseAuth.currentUser?.uid ?? current.id;
+
+      print('updateProfilePhoto -> uid: $uid, path: ${picked.path}');
+
+      final url = await _authService.uploadProfilePhoto(uid, picked);
+      print('updateProfilePhoto -> uploaded url: $url');
+
+      await _authService.updateUserProfile(uid, {'foto_profil_url': url});
+      print('updateProfilePhoto -> updateUserProfile success');
+
+      final updated = await _authService.getUserProfile(uid);
+      user.value = updated;
+
+      return true;
+    } catch (e, s) {
+      print('updateProfilePhoto ERROR: $e');
+      print(s);
+      errorMessage.value = 'Gagal mengubah foto profil: $e';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
 
   String _firebaseErrorMapper(String code) {
     switch (code) {
@@ -94,38 +194,6 @@ class AuthController extends GetxController {
         return 'Akun ini telah dinonaktifkan';
       default:
         return 'Terjadi kesalahan, coba lagi ($code)';
-    }
-  }
-
-  Future<void> updateProfile({
-    String? username,
-    String? nama,
-    String? bio,
-  }) async {
-    final current = user.value;
-    if (current == null) return;
-
-    final Map<String, dynamic> data = {};
-    if (username != null) data['username'] = username;
-    if (nama != null) data['nama'] = nama;
-    if (bio != null) data['bio'] = bio;
-
-    if (data.isEmpty) return;
-
-    try {
-      isLoading.value = true;
-      errorMessage.value = null;
-
-      await _authService.updateUserProfile(current.id, data);
-
-      // refresh profil dari Firestore
-      final updated = await _authService.getUserProfile(current.id);
-      user.value = updated;
-    } catch (e) {
-      errorMessage.value = 'Gagal mengubah profil';
-      Get.snackbar('Error', errorMessage.value!);
-    } finally {
-      isLoading.value = false;
     }
   }
 }

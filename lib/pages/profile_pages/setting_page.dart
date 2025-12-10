@@ -73,11 +73,7 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.location_on_outlined,
                 label: 'Alamat penjual',
                 onTap: () {
-                  Get.snackbar(
-                    'Alamat penjual',
-                    'Fitur ini belum tersedia',
-                    snackPosition: SnackPosition.BOTTOM,
-                  );
+                  Get.toNamed(Routes.address);
                 },
               ),
               const Divider(height: 1),

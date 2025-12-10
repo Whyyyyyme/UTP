@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/routes/app_routes.dart';
 
-import 'profile_pages/shop_profile_screen.dart';
 import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/routes/app_routes.dart';
+import 'profile_pages/shop_profile_screen.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -19,8 +19,15 @@ class ProfilePage extends StatelessWidget {
         return const Scaffold(body: Center(child: Text('Kamu belum login')));
       }
 
-      final nama = (user.nama).toString();
+      final namaRaw = user.nama;
+      final nama = namaRaw.isNotEmpty ? namaRaw : 'User';
+
+      final usernameRaw = user.username;
+      final username = usernameRaw.isNotEmpty ? '@$usernameRaw' : '';
+
       final initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
+      final fotoUrl = user.fotoProfilUrl;
+      final hasPhoto = fotoUrl.isNotEmpty;
 
       return Scaffold(
         appBar: AppBar(
@@ -32,33 +39,91 @@ class ProfilePage extends StatelessWidget {
         ),
         body: ListView(
           children: [
-            ListTile(
-              leading: Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.orange,
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+            const SizedBox(height: 16),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  Get.to(() => ShopProfileScreen(initialTabIndex: 0));
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.orange,
+                        backgroundImage: hasPhoto
+                            ? NetworkImage(fotoUrl)
+                            : null,
+                        child: hasPhoto
+                            ? null
+                            : Text(
+                                initial,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              nama,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (username.isNotEmpty)
+                              Text(
+                                username,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Lihat profil',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ],
                   ),
                 ),
               ),
-              title: Text(nama),
-              subtitle: const Text('Lihat profil'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Get.toNamed(Routes.ShopProfile);
-              },
             ),
 
+            const SizedBox(height: 16),
+
+            // BANNER
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               height: 120,
@@ -71,19 +136,18 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
 
+            // MENU FAVORIT
             ListTile(
               leading: const Icon(Icons.favorite_border),
               title: const Text('Favorit'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
-                Get.to(
-                  () => ShopProfileScreen(
-                    initialTabIndex: 1, // tab Likes
-                  ),
-                );
+                // langsung buka detail profil tab Likes
+                Get.to(() => ShopProfileScreen(initialTabIndex: 1));
               },
             ),
 
+            // WALLET
             ListTile(
               leading: Icon(Icons.wallet, color: Colors.grey[600]),
               title: const Text('Wallet'),
@@ -91,17 +155,28 @@ class ProfilePage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Rp 1.000.000', // sementara statis
+                    'Rp 1.000.000', // sementara masih statis
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   const SizedBox(width: 8),
                   const Icon(Icons.chevron_right, color: Colors.grey),
                 ],
               ),
-              onTap: () {},
+              onTap: () {
+                // TODO: nanti arahkan ke halaman wallet
+              },
             ),
 
-            _buildMenuTile(icon: Icons.message_outlined, title: 'Pesanan'),
+            // Pesanan
+            _buildMenuTile(
+              icon: Icons.message_outlined,
+              title: 'Pesanan',
+              onTap: () {
+                // TODO: halaman riwayat / daftar pesanan
+              },
+            ),
+
+            // Settings
             _buildMenuTile(
               icon: Icons.settings_outlined,
               title: 'Settings',
@@ -110,9 +185,25 @@ class ProfilePage extends StatelessWidget {
               },
             ),
 
-            _buildMenuTile(icon: Icons.tune, title: 'Personalisasi'),
-            _buildMenuTile(icon: Icons.share_outlined, title: 'Share shop'),
+            // Personalisasi
+            _buildMenuTile(
+              icon: Icons.tune,
+              title: 'Personalisasi',
+              onTap: () {
+                // TODO: halaman personalisasi
+              },
+            ),
 
+            // Share shop
+            _buildMenuTile(
+              icon: Icons.share_outlined,
+              title: 'Share shop',
+              onTap: () {
+                // TODO: logic share toko
+              },
+            ),
+
+            // Mode Liburan
             SwitchListTile.adaptive(
               title: const Text('Mode liburan'),
               value: false,
