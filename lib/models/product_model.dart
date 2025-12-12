@@ -9,7 +9,13 @@ class ProductModel {
   final String categoryName;
   final int price;
   final List<String> imageUrls;
-  final String status; // draft / published
+  final String status;
+  final String size;
+  final String brand;
+  final String condition;
+  final String color;
+  final String style;
+  final String material;
   final Timestamp createdAt;
   final Timestamp updatedAt;
 
@@ -25,6 +31,12 @@ class ProductModel {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    required this.size,
+    required this.brand,
+    required this.condition,
+    required this.color,
+    required this.style,
+    required this.material,
   });
 
   Map<String, dynamic> toMap() {
@@ -38,6 +50,12 @@ class ProductModel {
       'price': price,
       'image_urls': imageUrls,
       'status': status,
+      'size': size,
+      'brand': brand,
+      'condition': condition,
+      'color': color,
+      'style': style,
+      'material': material,
       'created_at': createdAt,
       'updated_at': updatedAt,
     };
@@ -53,9 +71,17 @@ class ProductModel {
       description: data['description'] ?? '',
       categoryId: data['category_id'] ?? '',
       categoryName: data['category_name'] ?? '',
-      price: (data['price'] ?? 0) as int,
+      price: (data['price'] ?? 0) is int
+          ? data['price'] as int
+          : int.tryParse(data['price']?.toString() ?? '0') ?? 0,
       imageUrls: List<String>.from(data['image_urls'] ?? []),
       status: data['status'] ?? 'draft',
+      size: data['size'] ?? '',
+      brand: data['brand'] ?? '',
+      condition: data['condition'] ?? '',
+      color: data['color'] ?? '',
+      style: data['style'] ?? '',
+      material: data['material'] ?? '',
       createdAt: data['created_at'] ?? Timestamp.now(),
       updatedAt: data['updated_at'] ?? Timestamp.now(),
     );

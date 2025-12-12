@@ -4,6 +4,7 @@ import 'package:prelovedly/pages/profile_pages/edit_profile_page.dart';
 import 'package:prelovedly/pages/profile_pages/setting_page.dart';
 import 'package:prelovedly/pages/profile_pages/shop_profile_screen.dart';
 import 'package:prelovedly/pages/profile_pages/address/add_address_page.dart';
+import 'package:prelovedly/pages/sell_pages/atribut_produk/kategori/category_list_page.dart';
 import 'package:prelovedly/pages/sell_pages/sell_page.dart';
 
 import 'app_routes.dart';
@@ -45,5 +46,14 @@ class AppPages {
     GetPage(name: Routes.addAddress, page: () => AddAddressPage()),
     GetPage(name: Routes.address, page: () => AddressListPage()),
     GetPage(name: Routes.sellProduct, page: () => JualPage()),
+    GetPage(
+      name: Routes.Category,
+      page: () {
+        final args = Get.arguments as Map<String, dynamic>? ?? {};
+        final options = (args['options'] as List).cast<String>();
+        final title = (args['title'] as String?) ?? 'Pilih Kategori';
+        return CategoryListPage(options: options, title: title);
+      },
+    ),
   ];
 }

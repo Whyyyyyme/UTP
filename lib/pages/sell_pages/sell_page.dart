@@ -1,20 +1,34 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+import 'package:prelovedly/controller/product/category_controller.dart';
+
 import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/pages/sell_pages/atribut_produk/brand_picker_page.dart';
+import 'package:prelovedly/pages/sell_pages/atribut_produk/color_picker_page.dart';
+import 'package:prelovedly/pages/sell_pages/atribut_produk/condition_picker_page.dart';
+import 'package:prelovedly/pages/sell_pages/atribut_produk/material_picker_page.dart';
+import 'package:prelovedly/pages/sell_pages/atribut_produk/price_page.dart';
+import 'package:prelovedly/pages/sell_pages/atribut_produk/size_picker_page.dart';
+import 'package:prelovedly/pages/sell_pages/style_picker_page.dart';
 import 'package:prelovedly/routes/app_routes.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:prelovedly/widgets/sell/sell_add_photo_card.dart';
+import 'package:prelovedly/widgets/sell/sell_label.dart';
+import 'package:prelovedly/widgets/sell/sell_photo_preview_card.dart';
 
 class JualPage extends StatelessWidget {
   const JualPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final SellController c = Get.put(SellController());
+    // Lebih aman: cari dulu kalau sudah ada, kalau belum baru put.
+    final SellController c = Get.isRegistered<SellController>()
+        ? Get.find()
+        : Get.put(SellController());
 
-    final priceFormatter = NumberFormat.decimalPattern('id');
+    final CategoryController categoryController =
+        Get.isRegistered<CategoryController>()
+        ? Get.find()
+        : Get.put(CategoryController());
 
     return Obx(() {
       return Scaffold(
@@ -25,14 +39,9 @@ class JualPage extends StatelessWidget {
           leading: IconButton(
             icon: const Icon(Icons.close),
             onPressed: () {
-              // ⬇️ LOGIC CLOSE
-              // Kalau masih bisa back, pop biasa
               if (Get.key.currentState?.canPop() ?? false) {
                 Get.back();
               } else {
-                // Kalau tidak ada route sebelumnya,
-                // paksa balik ke halaman utama / bottom-nav
-                // GANTI Routes.main sesuai nama route utama kamu
                 Get.offAllNamed(Routes.home);
               }
             },
@@ -42,16 +51,6 @@ class JualPage extends StatelessWidget {
             'Jual',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
-          actions: const [
-            Padding(
-              padding: EdgeInsets.only(right: 12.0),
-              child: Icon(Icons.content_copy_outlined),
-            ),
-            Padding(
-              padding: EdgeInsets.only(right: 12.0),
-              child: Icon(Icons.save_outlined),
-            ),
-          ],
         ),
         body: Column(
           children: [
@@ -61,7 +60,7 @@ class JualPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ====== AREA FOTO ======
+                    // ================= FOTO =================
                     SizedBox(
                       height: 140,
                       child: ListView.builder(
@@ -70,51 +69,39 @@ class JualPage extends StatelessWidget {
                         itemCount: c.images.length + 1,
                         itemBuilder: (context, index) {
                           if (index == 0) {
-                            return _AddPhotoCard(onTap: c.pickImage);
+                            return SellAddPhotoCard(onTap: c.pickImage);
                           }
 
                           final img = c.images[index - 1];
-                          return _PhotoPreviewCard(
+                          return SellPhotoPreviewCard(
                             file: img,
                             onRemove: () => c.removeImageAt(index - 1),
                           );
                         },
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'Baca tips menjual',
-                        style: TextStyle(
-                          color: Colors.blue[700],
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
 
-                    const SizedBox(height: 16),
                     const Divider(height: 1),
 
-                    // ====== JUDUL ======
+                    // ================= JUDUL =================
                     const SizedBox(height: 12),
-                    const _Label('Judul'),
+                    const SellLabel("Judul"),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: TextField(
                         controller: c.titleC,
                         decoration: const InputDecoration(
-                          hintText: 'cth. Levi\'s 578 baggy jeans hitam',
+                          hintText: "cth. Levi's baggy jeans hitam",
                           border: InputBorder.none,
                         ),
                       ),
                     ),
+
                     const Divider(height: 1),
 
-                    // ====== DESKRIPSI ======
+                    // ================= DESKRIPSI =================
                     const SizedBox(height: 12),
-                    const _Label('Deskripsi'),
+                    const SellLabel("Deskripsi"),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: TextField(
@@ -122,22 +109,163 @@ class JualPage extends StatelessWidget {
                         maxLines: 4,
                         decoration: const InputDecoration(
                           hintText:
-                              'cth. Jarang dipakai, size M, bahan katun adem, '
-                              'ada sedikit noda di bagian bawah',
+                              'cth. Jarang dipakai, size M, bahan adem...',
                           border: InputBorder.none,
                         ),
                       ),
                     ),
+
                     const Divider(height: 1),
 
-                    // ====== KATEGORI ======
+                    // ================= KATEGORI (FIXED) =================
                     ListTile(
-                      title: const Text('Kategori'),
+                      title: const Text("Kategori"),
+                      trailing: const Icon(Icons.chevron_right),
+                      subtitle: Obx(
+                        () => Text(
+                          c.categoryName.value.isEmpty
+                              ? 'Pilih kategori'
+                              : c.categoryName.value,
+                          style: TextStyle(
+                            color: c.categoryName.value.isEmpty
+                                ? Colors.grey
+                                : Colors.black,
+                          ),
+                        ),
+                      ),
+                      onTap: () async {
+                        final result = await categoryController
+                            .pickCategory3Level();
+                        if (result == null) return;
+
+                        // Simpan hasil kategori ke SellController
+                        c.categoryName.value = result['full']!;
+                        c.categoryId.value =
+                            '${result['gender']}/${result['section']}/${result['item']}';
+                      },
+                    ),
+
+                    const Divider(height: 1),
+
+                    // ========== ATRIBUT TAMBAHAN ==========
+                    // SIZE
+                    ListTile(
+                      title: const Text("Ukuran"),
+                      trailing: const Icon(Icons.chevron_right),
+                      subtitle: Text(
+                        c.size.value.isEmpty ? 'Pilih ukuran' : c.size.value,
+                        style: TextStyle(
+                          color: c.size.value.isEmpty
+                              ? Colors.grey
+                              : Colors.black,
+                        ),
+                      ),
+                      onTap: () => Get.to(() => const SizePickerPage()),
+                    ),
+                    const Divider(height: 1),
+
+                    // BRAND
+                    ListTile(
+                      title: const Text("Brand"),
+                      trailing: const Icon(Icons.chevron_right),
+                      subtitle: Text(
+                        c.brand.value.isEmpty
+                            ? 'Tambahkan brand'
+                            : c.brand.value,
+                        style: TextStyle(
+                          color: c.brand.value.isEmpty
+                              ? Colors.grey
+                              : Colors.black,
+                        ),
+                      ),
+                      onTap: () => Get.to(() => const BrandPickerPage()),
+                    ),
+                    const Divider(height: 1),
+
+                    // CONDITION
+                    ListTile(
+                      title: const Text("Kondisi"),
+                      trailing: const Icon(Icons.chevron_right),
+                      subtitle: Text(
+                        c.condition.value.isEmpty
+                            ? 'Pilih kondisi'
+                            : c.condition.value,
+                        style: TextStyle(
+                          color: c.condition.value.isEmpty
+                              ? Colors.grey
+                              : Colors.black,
+                        ),
+                      ),
+                      onTap: () => Get.to(() => const ConditionPickerPage()),
+                    ),
+                    const Divider(height: 1),
+
+                    // COLOR
+                    ListTile(
+                      title: const Text("Warna"),
+                      trailing: const Icon(Icons.chevron_right),
+                      subtitle: Obx(
+                        () => Text(
+                          c.color.value.isEmpty ? 'Pilih warna' : c.color.value,
+                          style: TextStyle(
+                            color: c.color.value.isEmpty
+                                ? Colors.grey
+                                : Colors.black,
+                          ),
+                        ),
+                      ),
+                      onTap: () async {
+                        await Get.to(() => ColorPickerPage());
+                      },
+                    ),
+
+                    const Divider(height: 1),
+
+                    // STYLE
+                    ListTile(
+                      title: const Text("Styles"),
+                      trailing: const Icon(Icons.chevron_right),
+                      subtitle: Text(
+                        c.style.value.isEmpty ? 'Pilih style' : c.style.value,
+                        style: TextStyle(
+                          color: c.style.value.isEmpty
+                              ? Colors.grey
+                              : Colors.black,
+                        ),
+                      ),
+                      onTap: () => Get.to(() => const StylePickerPage()),
+                    ),
+                    const Divider(height: 1),
+
+                    // MATERIAL
+                    ListTile(
+                      title: const Text("Material"),
+                      trailing: const Icon(Icons.chevron_right),
+                      subtitle: Obx(
+                        () => Text(
+                          c.material.value.isEmpty
+                              ? 'Pilih material'
+                              : c.material.value,
+                          style: TextStyle(
+                            color: c.material.value.isEmpty
+                                ? Colors.grey
+                                : Colors.black,
+                          ),
+                        ),
+                      ),
+                      onTap: () => Get.to(() => const MaterialPickerPage()),
+                    ),
+
+                    const Divider(height: 1),
+
+                    // ================= HARGA =================
+                    ListTile(
+                      title: const Text('Harga'),
                       trailing: const Icon(Icons.chevron_right),
                       subtitle: Obx(() {
-                        final text = c.categoryName.value;
+                        final text = c.priceText.value.trim();
                         return Text(
-                          text.isEmpty ? 'Pilih kategori' : text,
+                          text.isEmpty ? 'Masukkan harga' : 'Rp $text',
                           style: TextStyle(
                             color: text.isEmpty
                                 ? Colors.grey[500]
@@ -145,80 +273,22 @@ class JualPage extends StatelessWidget {
                           ),
                         );
                       }),
-                      onTap: c.pickCategory,
-                    ),
-                    const Divider(height: 1),
-
-                    // ====== HARGA ======
-                    ListTile(
-                      title: const Text('Harga'),
-                      trailing: const Icon(Icons.chevron_right),
-                      subtitle: TextField(
-                        controller: c.priceC,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          hintText: 'Masukkan harga',
-                          border: InputBorder.none,
-                          prefixText: 'Rp ',
-                        ),
-                        onChanged: (val) {
-                          final nums = val.replaceAll(RegExp(r'[^0-9]'), '');
-                          if (nums.isEmpty) return;
-                          final formatted = priceFormatter.format(
-                            int.parse(nums),
-                          );
-                          c.priceC.value = TextEditingValue(
-                            text: formatted,
-                            selection: TextSelection.collapsed(
-                              offset: formatted.length,
-                            ),
-                          );
-                        },
-                      ),
+                      onTap: () => Get.to(() => const PricePage()),
                     ),
                   ],
                 ),
               ),
             ),
 
-            // ====== BOTTOM BUTTONS ======
+            // ================= BUTTON =================
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
-                    offset: Offset(0, -2),
-                  ),
-                ],
-              ),
               child: Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       onPressed: c.isSaving.value ? null : () => c.saveDraft(),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: const BorderSide(color: Colors.black),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                      child: c.isSaving.value
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text(
-                              'Save draft',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                      child: const Text("Save draft"),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -229,27 +299,8 @@ class JualPage extends StatelessWidget {
                           : () => c.uploadProduct(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
                       ),
-                      child: c.isSaving.value
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Upload',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                      child: const Text("Upload"),
                     ),
                   ),
                 ],
@@ -259,99 +310,5 @@ class JualPage extends StatelessWidget {
         ),
       );
     });
-  }
-}
-
-class _Label extends StatelessWidget {
-  final String text;
-  const _Label(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 4),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          color: Colors.grey[600],
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}
-
-class _AddPhotoCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _AddPhotoCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 110,
-      margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.grey.shade300),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: const Text('+ Tambah foto'),
-      ),
-    );
-  }
-}
-
-class _PhotoPreviewCard extends StatelessWidget {
-  final dynamic file; // biasanya XFile
-  final VoidCallback onRemove;
-
-  const _PhotoPreviewCard({required this.file, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    // asumsi file adalah XFile / punya .path
-    final String path = file.path;
-
-    // pilih ImageProvider sesuai platform
-    ImageProvider imageProvider;
-    if (kIsWeb) {
-      // di web: path biasanya "blob:..." → pakai NetworkImage
-      imageProvider = NetworkImage(path);
-    } else {
-      // di Android/iOS: pakai FileImage
-      imageProvider = FileImage(File(path));
-    }
-
-    return Stack(
-      children: [
-        Container(
-          width: 110,
-          margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.grey[200],
-            image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
-          ),
-        ),
-        Positioned(
-          right: 4,
-          top: 4,
-          child: GestureDetector(
-            onTap: onRemove,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
-              ),
-              padding: const EdgeInsets.all(4),
-              child: const Icon(Icons.close, size: 14, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }
