@@ -46,7 +46,7 @@ class SettingsPage extends StatelessWidget {
                   Get.snackbar(
                     'Account settings',
                     'Fitur ini belum tersedia',
-                    snackPosition: SnackPosition.BOTTOM,
+                    snackPosition: SnackPosition.TOP,
                   );
                 },
               ),
@@ -58,7 +58,7 @@ class SettingsPage extends StatelessWidget {
                   Get.snackbar(
                     'Notifications',
                     'Fitur ini belum tersedia',
-                    snackPosition: SnackPosition.BOTTOM,
+                    snackPosition: SnackPosition.TOP,
                   );
                 },
               ),
@@ -84,7 +84,7 @@ class SettingsPage extends StatelessWidget {
                   Get.snackbar(
                     'Kurir pengiriman',
                     'Fitur ini belum tersedia',
-                    snackPosition: SnackPosition.BOTTOM,
+                    snackPosition: SnackPosition.TOP,
                   );
                 },
               ),

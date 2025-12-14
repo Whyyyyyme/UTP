@@ -40,7 +40,7 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
     Get.snackbar(
       'Berhasil',
       'Username berhasil diperbarui',
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
     );
   }
 

@@ -44,7 +44,7 @@ class MaterialPickerController extends GetxController {
         Get.snackbar(
           "Maksimal 3 material",
           "Kamu hanya bisa memilih 3 opsi",
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       }
     } else {

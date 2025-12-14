@@ -147,13 +147,13 @@ class AddAddressPage extends StatelessWidget {
                             Get.snackbar(
                               'Berhasil',
                               'Alamat tersimpan',
-                              snackPosition: SnackPosition.BOTTOM,
+                              snackPosition: SnackPosition.TOP,
                             );
                           } else {
                             Get.snackbar(
                               'Error',
                               'Alamat belum tersimpan, cek form / koneksi',
-                              snackPosition: SnackPosition.BOTTOM,
+                              snackPosition: SnackPosition.TOP,
                             );
                           }
                         },

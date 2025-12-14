@@ -64,9 +64,13 @@ class _AnimatedBottomNavBarUTPState extends State<AnimatedBottomNavBarUTP> {
                 if (navBar.rive.status != null) {
                   RiveUtils.changeSMIBoolState(navBar.rive.status!);
                 }
-                setState(() {
-                  selectedNav = navBar;
-                });
+
+                // highlight hanya untuk tab selain tombol "+"
+                if (index != 2) {
+                  setState(() => selectedNav = navBar);
+                }
+
+                // ✅ serahkan aksi ke parent
                 widget.onIndexChanged(index);
               },
               riveOnInit: (artboard) {

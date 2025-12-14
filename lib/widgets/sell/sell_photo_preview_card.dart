@@ -1,28 +1,20 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:prelovedly/models/image_model.dart';
 
 class SellPhotoPreviewCard extends StatelessWidget {
-  final XFile file;
+  final SellImage image;
   final VoidCallback onRemove;
 
   const SellPhotoPreviewCard({
     super.key,
-    required this.file,
+    required this.image,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    final String path = file.path;
-
-    final ImageProvider provider = kIsWeb
-        ? NetworkImage(
-            path,
-          ) // catatan: web kadang perlu bytes, tapi ini ikut struktur kamu dulu
-        : FileImage(File(path));
-
     return Stack(
       children: [
         Container(
@@ -31,8 +23,9 @@ class SellPhotoPreviewCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             color: Colors.grey[200],
-            image: DecorationImage(image: provider, fit: BoxFit.cover),
           ),
+          clipBehavior: Clip.antiAlias,
+          child: _buildImage(),
         ),
         Positioned(
           right: 4,
@@ -50,6 +43,56 @@ class SellPhotoPreviewCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildImage() {
+    // 1) URL lama (draft)
+    if (image.isUrl) {
+      final url = image.url ?? '';
+      if (url.isEmpty) {
+        return const Center(child: Icon(Icons.image_not_supported));
+      }
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            const Center(child: Icon(Icons.broken_image)),
+      );
+    }
+
+    // 2) Local file baru
+    final xfile = image.local;
+    if (xfile == null) {
+      return const Center(child: Icon(Icons.image_not_supported));
+    }
+
+    if (kIsWeb) {
+      // ✅ paling stabil di web: render dari bytes
+      return FutureBuilder<Uint8List>(
+        future: xfile.readAsBytes(),
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
+          }
+          return Image.memory(
+            snap.data!,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                const Center(child: Icon(Icons.broken_image)),
+          );
+        },
+      );
+    }
+
+    // mobile/desktop
+    return Image.file(
+      File(xfile.path),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) =>
+          const Center(child: Icon(Icons.broken_image)),
     );
   }
 }

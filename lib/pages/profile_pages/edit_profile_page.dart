@@ -26,20 +26,20 @@ class EditProfilePage extends GetView<AuthController> {
         Get.snackbar(
           'Berhasil',
           'Foto profil berhasil diperbarui',
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       } else {
         Get.snackbar(
           'Error',
           controller.errorMessage.value ?? 'Gagal mengubah foto profil',
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       }
     } catch (e) {
       Get.snackbar(
         'Error',
         'Gagal mengubah foto profil: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }

@@ -9,6 +9,7 @@ import 'package:prelovedly/controller/auth_controller.dart';
 import 'package:prelovedly/controller/product/brand_controller.dart';
 import 'package:prelovedly/models/product_model.dart';
 import 'package:intl/intl.dart';
+import 'package:prelovedly/models/image_model.dart';
 
 class SellController extends GetxController {
   final _db = FirebaseFirestore.instance;
@@ -27,7 +28,7 @@ class SellController extends GetxController {
   final priceText = ''.obs;
 
   // --- FOTO ---
-  final images = <XFile>[].obs;
+  final images = <SellImage>[].obs;
 
   // --- KATEGORI (3 level) ---
   final categoryName = ''.obs;
@@ -46,6 +47,101 @@ class SellController extends GetxController {
   // Promo status
   final promoActive = false.obs;
 
+  final canPublish = false.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+
+    // listener untuk field yang bukan Rx (TextEditingController)
+    titleC.addListener(_recalcCanPublish);
+    descC.addListener(_recalcCanPublish);
+    priceC.addListener(_recalcCanPublish);
+    promoC.addListener(_recalcCanPublish);
+
+    // listener untuk field Rx
+    ever(categoryName, (_) => _recalcCanPublish());
+    ever(categoryId, (_) => _recalcCanPublish());
+    ever(priceText, (_) => _recalcCanPublish());
+
+    ever(size, (_) => _recalcCanPublish());
+    ever(brand, (_) => _recalcCanPublish());
+    ever(condition, (_) => _recalcCanPublish());
+    ever(color, (_) => _recalcCanPublish());
+    ever(style, (_) => _recalcCanPublish());
+    ever(material, (_) => _recalcCanPublish());
+
+    ever(promoActive, (_) => _recalcCanPublish());
+    ever<List>(images, (_) => _recalcCanPublish());
+
+    _recalcCanPublish();
+  }
+
+  void _recalcCanPublish() {
+    final titleOk = titleC.text.trim().isNotEmpty;
+    final descOk = descC.text.trim().isNotEmpty;
+
+    final categoryOk = categoryName.value.trim().isNotEmpty;
+
+    // harga valid (min 25.000)
+    final price = parseInt(
+      priceText.value.isNotEmpty ? priceText.value : priceC.text,
+    );
+    final priceOk = price != null && price >= 25000;
+
+    // minimal 1 foto untuk publish
+    final imagesOk = images.isNotEmpty;
+
+    // semua atribut wajib (sesuai request kamu)
+    final sizeOk = size.value.trim().isNotEmpty;
+    final brandOk = brand.value.trim().isNotEmpty;
+    final conditionOk = condition.value.trim().isNotEmpty;
+    final colorOk = color.value.trim().isNotEmpty;
+    final styleOk = style.value.trim().isNotEmpty;
+    final materialOk = material.value.trim().isNotEmpty;
+
+    // promo jika aktif harus valid
+    bool promoOk = true;
+    if (promoActive.value) {
+      final promo = parseInt(promoC.text);
+      final maxPromo = price == null ? 0 : (price * 0.8).floor();
+      promoOk = promo != null && promo >= 5000 && promo <= maxPromo;
+    }
+
+    canPublish.value =
+        titleOk &&
+        descOk &&
+        categoryOk &&
+        priceOk &&
+        imagesOk &&
+        sizeOk &&
+        brandOk &&
+        conditionOk &&
+        colorOk &&
+        styleOk &&
+        materialOk &&
+        promoOk;
+  }
+
+  final _modeReady = false.obs;
+  String? _lastLoadedDraftId;
+
+  void prepareCreate() {
+    // kalau sedang edit, reset dulu
+    if (isEditing || _modeReady.value) {
+      _resetForm();
+    }
+    _modeReady.value = true;
+    _lastLoadedDraftId = null;
+  }
+
+  Future<void> prepareEditDraft(String productId) async {
+    if (_lastLoadedDraftId == productId && isEditing) return;
+    await loadDraft(productId);
+    _lastLoadedDraftId = productId;
+    _modeReady.value = true;
+  }
+
   // =====================
   // FOTO
   // =====================
@@ -57,7 +153,7 @@ class SellController extends GetxController {
       imageQuality: 80,
     );
     if (picked != null) {
-      images.add(picked);
+      images.add(SellImage.local(picked));
     }
   }
 
@@ -127,7 +223,7 @@ class SellController extends GetxController {
       Get.snackbar(
         'Harga tidak valid',
         'Minimal harga Rp 25.000',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -138,7 +234,7 @@ class SellController extends GetxController {
         Get.snackbar(
           'Promo ongkir',
           'Masukkan nominal promo ongkir',
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
         return;
       }
@@ -149,7 +245,7 @@ class SellController extends GetxController {
         Get.snackbar(
           'Promo ongkir tidak valid',
           'Min. Rp 5.000 dan maks. Rp ${_formatter.format(maxPromo)}',
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
         return;
       }
@@ -180,37 +276,35 @@ class SellController extends GetxController {
   // ENTRY POINT SAVE
   // =====================
 
-  Future<void> saveDraft() async => _save(status: 'draft');
-  Future<void> uploadProduct() async => _save(status: 'published');
+  Future<bool> saveDraft() => _save(status: 'draft');
+  Future<bool> uploadProduct() => _save(status: 'published');
 
-  Future<void> _save({required String status}) async {
+  Future<bool> _save({required String status}) async {
     final auth = AuthController.to;
     final currentUser = auth.user.value;
 
     if (currentUser == null) {
       Get.snackbar('Error', 'Kamu belum login');
-      return;
+      return false;
     }
 
     final error = _validate(publish: status == 'published');
     if (error != null) {
       Get.snackbar('Error', error);
-      return;
+      return false;
     }
 
     try {
       isSaving.value = true;
 
       final sellerId = currentUser.id;
-      final docRef = _db.collection('products').doc();
+      final docRef = isEditing
+          ? _db.collection('products').doc(editingProductId.value!)
+          : _db.collection('products').doc();
 
-      List<String> imageUrls = [];
-      if (images.isNotEmpty) {
-        imageUrls = await _uploadImages(
-          sellerId: sellerId,
-          productId: docRef.id,
-        );
-      }
+      final imageUrls = images.isNotEmpty
+          ? await _uploadImages(sellerId: sellerId, productId: docRef.id)
+          : <String>[];
 
       final priceInt = parseInt(priceC.text) ?? 0;
       final now = Timestamp.now();
@@ -235,7 +329,7 @@ class SellController extends GetxController {
         material: material.value,
       );
 
-      await docRef.set(product.toMap());
+      await docRef.set(product.toMap(), SetOptions(merge: true));
 
       Get.snackbar(
         'Berhasil',
@@ -244,12 +338,14 @@ class SellController extends GetxController {
       );
 
       _resetForm();
+      return true;
     } catch (e) {
       Get.snackbar(
         'Error',
         'Gagal menyimpan produk: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
+      return false;
     } finally {
       isSaving.value = false;
     }
@@ -266,27 +362,31 @@ class SellController extends GetxController {
     final urls = <String>[];
 
     for (final img in images) {
+      // 1) kalau URL lama (draft), langsung simpan lagi
+      if (img.isUrl) {
+        urls.add(img.url!);
+        continue;
+      }
+
+      // 2) kalau lokal, upload ke supabase
+      final xfile = img.local!;
       final fileName =
           '$sellerId/$productId/${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       if (kIsWeb) {
-        final bytes = await img.readAsBytes();
+        final bytes = await xfile.readAsBytes();
         final resp = await _supabase.storage
             .from('product_photos')
             .uploadBinary(fileName, bytes);
 
-        if (resp.isEmpty) {
-          throw Exception('Upload gagal (web)');
-        }
+        if (resp.isEmpty) throw Exception('Upload gagal (web)');
       } else {
-        final file = File(img.path);
+        final file = File(xfile.path);
         final resp = await _supabase.storage
             .from('product_photos')
             .upload(fileName, file);
 
-        if (resp.isEmpty) {
-          throw Exception('Upload gagal (mobile)');
-        }
+        if (resp.isEmpty) throw Exception('Upload gagal (mobile)');
       }
 
       final publicUrl = _supabase.storage
@@ -296,6 +396,49 @@ class SellController extends GetxController {
     }
 
     return urls;
+  }
+
+  final editingProductId = RxnString();
+  bool get isEditing => editingProductId.value != null;
+
+  void startCreate() {
+    editingProductId.value = null;
+    _resetForm();
+  }
+
+  Future<void> loadDraft(String productId) async {
+    final doc = await _db.collection('products').doc(productId).get();
+    final data = doc.data();
+    if (data == null) throw Exception('Draft tidak ditemukan');
+
+    editingProductId.value = productId;
+
+    titleC.text = (data['title'] ?? '').toString();
+    descC.text = (data['description'] ?? '').toString();
+
+    categoryId.value = (data['category_id'] ?? data['categoryId'] ?? '')
+        .toString();
+    categoryName.value = (data['category_name'] ?? data['categoryName'] ?? '')
+        .toString();
+
+    final priceRaw = data['price'];
+    final priceInt = priceRaw is int
+        ? priceRaw
+        : int.tryParse('$priceRaw') ?? 0;
+    final formatted = _formatter.format(priceInt);
+    priceC.text = formatted;
+    priceText.value = formatted;
+
+    size.value = (data['size'] ?? '').toString();
+    brand.value = (data['brand'] ?? '').toString();
+    condition.value = (data['condition'] ?? '').toString();
+    color.value = (data['color'] ?? '').toString();
+    style.value = (data['style'] ?? '').toString();
+    material.value = (data['material'] ?? '').toString();
+
+    // preload images dari image_urls
+    final List raw = (data['image_urls'] as List?) ?? [];
+    images.assignAll(raw.map((e) => SellImage.url(e.toString())).toList());
   }
 
   // =====================
@@ -369,7 +512,7 @@ class SellController extends GetxController {
         Get.snackbar(
           'Maksimal 2 style',
           'Kamu hanya bisa memilih 2 style.',
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       }
     }
@@ -386,6 +529,33 @@ class SellController extends GetxController {
     if (result != null && result.isNotEmpty) {
       brand.value = result;
       _brandController.setBrand(result);
+    }
+  }
+
+  Future<void> startEditDraft(String productId) async {
+    await loadDraft(productId);
+  }
+
+  Future<void> deleteDraft() async {
+    final id = editingProductId.value;
+    if (id == null) return;
+
+    try {
+      await _db.collection('products').doc(id).delete();
+
+      Get.snackbar(
+        'Berhasil',
+        'Draft berhasil dihapus',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+
+      _resetForm();
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Gagal menghapus draft: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
@@ -411,6 +581,8 @@ class SellController extends GetxController {
     material.value = '';
     images.clear();
     promoActive.value = false;
+    editingProductId.value = null;
+    canPublish.value = false;
   }
 
   @override

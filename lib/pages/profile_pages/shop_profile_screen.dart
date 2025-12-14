@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/controller/sell_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 
 class ShopProfileScreen extends StatelessWidget {
@@ -243,14 +244,38 @@ class ShopProfileScreen extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: allProducts.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                    crossAxisCount: 3,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
                     childAspectRatio: 1,
                   ),
                   itemBuilder: (context, index) {
                     final product = allProducts[index];
-                    return _ProductCard(product: product);
+
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () async {
+                        if (product.isDraft) {
+                          final sell = Get.isRegistered<SellController>()
+                              ? Get.find<SellController>()
+                              : Get.put(SellController());
+
+                          await sell.loadDraft(
+                            product.id,
+                          ); // ✅ preload form + images(url/local)
+                          Get.toNamed(
+                            Routes.editDraft,
+                            arguments: {"id": product.id},
+                          );
+
+                          return;
+                        }
+
+                        // TODO: kalau published bisa ke detail
+                        // Get.toNamed(Routes.productDetail, arguments: {"id": product.id});
+                      },
+                      child: _ProductCard(product: product),
+                    );
                   },
                 ),
             ],
@@ -301,6 +326,16 @@ class ShopProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authC = Get.find<AuthController>();
+    final args = Get.arguments;
+    final int initialIndexFromArgs =
+        (args is Map && args['initialTabIndex'] is int)
+        ? args['initialTabIndex'] as int
+        : initialTabIndex;
+
+    final int initialIndex =
+        (initialIndexFromArgs < 0 || initialIndexFromArgs > 2)
+        ? 0
+        : initialIndexFromArgs;
 
     return Obx(() {
       final profile = authC.user.value;
@@ -315,10 +350,6 @@ class ShopProfileScreen extends StatelessWidget {
       final String bio = profile.bio;
       final String fotoProfilUrl = profile.fotoProfilUrl;
 
-      final int initialIndex = (initialTabIndex < 0 || initialTabIndex > 2)
-          ? 0
-          : initialTabIndex;
-
       return DefaultTabController(
         length: 3,
         initialIndex: initialIndex,
@@ -326,7 +357,13 @@ class ShopProfileScreen extends StatelessWidget {
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => Get.back(),
+              onPressed: () {
+                if (Get.key.currentState?.canPop() ?? false) {
+                  Get.back();
+                } else {
+                  Get.offNamed(Routes.profile);
+                }
+              },
             ),
             title: Text(username.isNotEmpty ? username : nama),
             actions: [

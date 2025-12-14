@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 
 import 'package:prelovedly/controller/auth_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
-import 'profile_pages/shop_profile_screen.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -46,7 +45,10 @@ class ProfilePage extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  Get.to(() => ShopProfileScreen(initialTabIndex: 0));
+                  Get.toNamed(
+                    Routes.shopProfile,
+                    arguments: {'initialTabIndex': 0},
+                  );
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -143,7 +145,12 @@ class ProfilePage extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
                 // langsung buka detail profil tab Likes
-                Get.to(() => ShopProfileScreen(initialTabIndex: 1));
+                Get.toNamed(
+                  Routes.shopProfile,
+                  arguments: {
+                    'initialTabIndex': 1, // Likes
+                  },
+                );
               },
             ),
 

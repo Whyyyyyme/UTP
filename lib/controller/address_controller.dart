@@ -45,10 +45,8 @@ class AddressController extends GetxController {
 
       final snap = await col.limit(1).get();
       final has = snap.docs.isNotEmpty;
-      print('hasAnyAddress => $has');
       return has;
     } catch (e) {
-      print('hasAnyAddress ERROR: $e');
       return false;
     }
   }
@@ -100,16 +98,11 @@ class AddressController extends GetxController {
         isDefault: false,
       );
 
-      print('saveNewAddress => will write to ${docRef.path}');
-      print('data: ${model.toMap()}');
-
       await docRef.set(model.toMap());
 
-      print('saveNewAddress => success');
       return true;
     } catch (e) {
-      print('saveNewAddress ERROR: $e');
-      Get.snackbar('Error', 'Gagal menyimpan alamat: $e');
+      Get.snackbar('Error', 'Gagal menyimpan alamat');
       return false;
     } finally {
       isSaving.value = false;
@@ -129,14 +122,13 @@ class AddressController extends GetxController {
       Get.snackbar(
         'Berhasil',
         'Alamat dihapus',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
-      print('deleteAddress ERROR: $e');
       Get.snackbar(
         'Error',
-        'Gagal menghapus alamat: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        'Gagal menghapus alamat',
+        snackPosition: SnackPosition.TOP,
       );
     }
   }
