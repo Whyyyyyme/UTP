@@ -271,8 +271,9 @@ class ShopProfileScreen extends StatelessWidget {
                           return;
                         }
 
-                        // TODO: kalau published bisa ke detail
-                        // Get.toNamed(Routes.productDetail, arguments: {"id": product.id});
+                        Get.toNamed(
+                          '${Routes.manageProduct}?id=${product.id}&seller_id=$userId',
+                        );
                       },
                       child: _ProductCard(product: product),
                     );

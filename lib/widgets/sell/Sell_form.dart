@@ -11,7 +11,19 @@ import 'package:prelovedly/widgets/sell/sell_photo_preview_card.dart';
 class SellFormBody extends StatelessWidget {
   final VoidCallback onAfterSave;
 
-  const SellFormBody({super.key, required this.onAfterSave});
+  final String leftText;
+  final String rightText;
+  final Future<bool> Function()? onLeftPressed;
+  final Future<bool> Function()? onRightPressed;
+
+  const SellFormBody({
+    super.key,
+    required this.onAfterSave,
+    this.leftText = "Save draft",
+    this.rightText = "Upload",
+    this.onLeftPressed,
+    this.onRightPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -255,25 +267,30 @@ class SellFormBody extends StatelessWidget {
                     onPressed: saving
                         ? null
                         : () async {
-                            final ok = await c.saveDraft(); // harus bool
+                            final fn = onLeftPressed ?? c.saveDraft;
+                            final ok = await fn();
                             if (ok) onAfterSave();
                           },
-                    child: const Text("Save draft"),
+                    child: Text(leftText),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: (saving || !canUpload)
+                    onPressed: saving
                         ? null
                         : () async {
-                            final ok = await c.uploadProduct(); // harus bool
+                            // default upload harus tetap pakai canUpload
+                            if (onRightPressed == null && !canUpload) return;
+
+                            final fn = onRightPressed ?? c.uploadProduct;
+                            final ok = await fn();
                             if (ok) onAfterSave();
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                     ),
-                    child: const Text("Upload"),
+                    child: Text(rightText),
                   ),
                 ),
               ],

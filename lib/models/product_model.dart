@@ -29,19 +29,48 @@ class ProductModel {
     required this.price,
     required this.imageUrls,
     required this.status,
-    required this.createdAt,
-    required this.updatedAt,
     required this.size,
     required this.brand,
     required this.condition,
     required this.color,
     required this.style,
     required this.material,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
+  /// 🔁 Firestore → Model
+  factory ProductModel.fromDoc(DocumentSnapshot doc) {
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
+
+    return ProductModel(
+      id: doc.id, // ✅ SELALU pakai doc.id
+      sellerId: data['seller_id'] ?? '',
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      categoryId: data['category_id'] ?? '',
+      categoryName: data['category_name'] ?? '',
+      price: (data['price'] is int)
+          ? data['price'] as int
+          : int.tryParse('${data['price']}') ?? 0,
+      imageUrls:
+          (data['image_urls'] as List?)?.map((e) => e.toString()).toList() ??
+          [],
+      status: data['status'] ?? 'draft',
+      size: data['size'] ?? '',
+      brand: data['brand'] ?? '',
+      condition: data['condition'] ?? '',
+      color: data['color'] ?? '',
+      style: data['style'] ?? '',
+      material: data['material'] ?? '',
+      createdAt: data['created_at'] ?? Timestamp.now(),
+      updatedAt: data['updated_at'] ?? Timestamp.now(),
+    );
+  }
+
+  /// 🔁 Model → Firestore
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'seller_id': sellerId,
       'title': title,
       'description': description,
@@ -59,31 +88,5 @@ class ProductModel {
       'created_at': createdAt,
       'updated_at': updatedAt,
     };
-  }
-
-  factory ProductModel.fromDoc(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
-    return ProductModel(
-      id: data['id'] ?? doc.id,
-      sellerId: data['seller_id'] ?? '',
-      title: data['title'] ?? '',
-      description: data['description'] ?? '',
-      categoryId: data['category_id'] ?? '',
-      categoryName: data['category_name'] ?? '',
-      price: (data['price'] ?? 0) is int
-          ? data['price'] as int
-          : int.tryParse(data['price']?.toString() ?? '0') ?? 0,
-      imageUrls: List<String>.from(data['image_urls'] ?? []),
-      status: data['status'] ?? 'draft',
-      size: data['size'] ?? '',
-      brand: data['brand'] ?? '',
-      condition: data['condition'] ?? '',
-      color: data['color'] ?? '',
-      style: data['style'] ?? '',
-      material: data['material'] ?? '',
-      createdAt: data['created_at'] ?? Timestamp.now(),
-      updatedAt: data['updated_at'] ?? Timestamp.now(),
-    );
   }
 }

@@ -298,29 +298,50 @@ class SellController extends GetxController {
       isSaving.value = true;
 
       final sellerId = currentUser.id;
+      final now = Timestamp.now();
+
       final docRef = isEditing
           ? _db.collection('products').doc(editingProductId.value!)
           : _db.collection('products').doc();
 
-      final imageUrls = images.isNotEmpty
+      // ✅ kalau edit: ambil data lama dulu (buat createdAt & image lama)
+      Map<String, dynamic>? oldData;
+      if (isEditing) {
+        final oldDoc = await docRef.get();
+        oldData = oldDoc.data();
+      }
+
+      // ✅ upload hanya kalau ada gambar baru
+      final List<String> uploadedUrls = images.isNotEmpty
           ? await _uploadImages(sellerId: sellerId, productId: docRef.id)
           : <String>[];
 
+      // ✅ kalau tidak upload gambar baru saat edit -> pakai image_urls lama
+      final List<String> finalImageUrls = uploadedUrls.isNotEmpty
+          ? uploadedUrls
+          : (oldData?['image_urls'] as List?)
+                    ?.map((e) => e.toString())
+                    .toList() ??
+                <String>[];
+
       final priceInt = parseInt(priceC.text) ?? 0;
-      final now = Timestamp.now();
 
       final product = ProductModel(
-        id: docRef.id,
+        id: docRef.id, // ✅ id konsisten doc.id
         sellerId: sellerId,
         title: titleC.text.trim(),
         description: descC.text.trim(),
         categoryId: categoryId.value,
         categoryName: categoryName.value,
         price: priceInt,
-        imageUrls: imageUrls,
+        imageUrls: finalImageUrls,
         status: status,
-        createdAt: now,
+
+        // ✅ createdAt tidak boleh berubah saat edit
+        createdAt: isEditing ? (oldData?['created_at'] ?? now) : now,
+
         updatedAt: now,
+
         size: size.value,
         brand: brand.value,
         condition: condition.value,
@@ -398,6 +419,99 @@ class SellController extends GetxController {
     return urls;
   }
 
+  Future<bool> updateProduct(String productId) async {
+    final auth = AuthController.to;
+    final currentUser = auth.user.value;
+
+    if (currentUser == null) {
+      Get.snackbar('Error', 'Kamu belum login');
+      return false;
+    }
+
+    final error = _validate(publish: true); // edit published harus valid
+    if (error != null) {
+      Get.snackbar('Error', error);
+      return false;
+    }
+
+    try {
+      isSaving.value = true;
+
+      final sellerId = currentUser.id;
+      final now = Timestamp.now();
+
+      final docRef = _db.collection('products').doc(productId);
+
+      // ambil data lama untuk jaga created_at
+      final oldDoc = await docRef.get();
+      final oldData = oldDoc.data() ?? {};
+
+      // upload + merge image (SellImage sudah handle url vs local)
+      final finalImageUrls = await _uploadImages(
+        sellerId: sellerId,
+        productId: productId,
+      );
+
+      final priceInt =
+          parseInt(
+            priceText.value.isNotEmpty ? priceText.value : priceC.text,
+          ) ??
+          0;
+
+      await docRef.set({
+        'title': titleC.text.trim(),
+        'description': descC.text.trim(),
+        'category_id': categoryId.value,
+        'category_name': categoryName.value,
+        'size': size.value,
+        'brand': brand.value,
+        'condition': condition.value,
+        'color': color.value,
+        'style': style.value,
+        'material': material.value,
+        'price': priceInt,
+        'image_urls': finalImageUrls,
+        'status': 'published',
+        'created_at': oldData['created_at'] ?? now,
+        'updated_at': now,
+      }, SetOptions(merge: true));
+
+      Get.snackbar(
+        'Berhasil',
+        'Perubahan disimpan',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('updateProduct error: $e');
+      Get.snackbar(
+        'Error',
+        'Gagal menyimpan perubahan: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  Future<bool> moveProductToDraft(String productId) async {
+    try {
+      isSaving.value = true;
+      await FirebaseFirestore.instance
+          .collection('products')
+          .doc(productId)
+          .update({'status': 'draft', 'updated_at': Timestamp.now()});
+      return true;
+    } catch (e) {
+      debugPrint('moveProductToDraft error: $e');
+      return false;
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  //  Edit Draft Product
   final editingProductId = RxnString();
   bool get isEditing => editingProductId.value != null;
 
@@ -441,9 +555,43 @@ class SellController extends GetxController {
     images.assignAll(raw.map((e) => SellImage.url(e.toString())).toList());
   }
 
-  // =====================
+  // Edit Product
+  Future<void> loadProductForEdit(String productId) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('products')
+        .doc(productId)
+        .get();
+
+    if (!doc.exists) return;
+    final data = doc.data() ?? {};
+
+    // isi form
+    titleC.text = (data['title'] ?? '').toString();
+    descC.text = (data['description'] ?? '').toString();
+
+    categoryId.value = (data['category_id'] ?? '').toString();
+    categoryName.value = (data['category_name'] ?? '').toString();
+
+    size.value = (data['size'] ?? '').toString();
+    brand.value = (data['brand'] ?? '').toString();
+    condition.value = (data['condition'] ?? '').toString();
+    color.value = (data['color'] ?? '').toString();
+    style.value = (data['style'] ?? '').toString();
+    material.value = (data['material'] ?? '').toString();
+
+    final p = data['price'];
+    priceText.value = (p ?? '').toString(); // kalau kamu pakai priceText
+    priceC.text = (p ?? '').toString(); // kalau kamu pakai priceC juga
+
+    // gambar
+    images.clear();
+    final urls =
+        (data['image_urls'] as List?)?.map((e) => e.toString()).toList() ?? [];
+
+    images.assignAll(urls.map((u) => SellImage.url(u)).toList());
+  }
+
   // ATRIBUT TAMBAHAN
-  // =====================
 
   void selectSize(String selectedSize) => size.value = selectedSize;
 

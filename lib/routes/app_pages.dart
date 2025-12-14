@@ -1,7 +1,10 @@
 import 'package:get/get.dart';
 import 'package:prelovedly/bindings/app_binding.dart';
+import 'package:prelovedly/controller/manage_product_controller.dart';
 import 'package:prelovedly/pages/profile_pages/address/address_list_page.dart';
+import 'package:prelovedly/pages/profile_pages/edit_product_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile_page.dart';
+import 'package:prelovedly/pages/profile_pages/manage_product_page.dart';
 import 'package:prelovedly/pages/profile_pages/setting_page.dart';
 import 'package:prelovedly/pages/profile_pages/shop_profile_screen.dart';
 import 'package:prelovedly/pages/profile_pages/address/add_address_page.dart';
@@ -32,6 +35,7 @@ class AppPages {
   static const initial = Routes.login;
 
   static final routes = <GetPage>[
+    // Login & Register
     GetPage(name: Routes.login, page: () => LoginPage()),
     GetPage(name: Routes.registerEmail, page: () => const EmailRegisterPage()),
     GetPage(
@@ -47,13 +51,19 @@ class AppPages {
       page: () =>
           const PasswordRegisterPage(email: '', fullName: '', username: ''),
     ),
+
+    // Main Page
     GetPage(name: Routes.home, page: () => const HomePage()),
     GetPage(name: Routes.profile, page: () => const ProfilePage()),
+
+    // Profile
     GetPage(name: Routes.shopProfile, page: () => ShopProfileScreen()),
     GetPage(name: Routes.settings, page: () => const SettingsPage()),
     GetPage(name: Routes.editProfile, page: () => const EditProfilePage()),
     GetPage(name: Routes.addAddress, page: () => AddAddressPage()),
     GetPage(name: Routes.address, page: () => AddressListPage()),
+
+    // Sell
     GetPage(
       name: Routes.sellProduct,
       page: () => JualPage(),
@@ -80,5 +90,15 @@ class AppPages {
     GetPage(name: Routes.style, page: () => StylePickerPage()),
     GetPage(name: Routes.material, page: () => MaterialPickerPage()),
     GetPage(name: Routes.price, page: () => PricePage()),
+
+    // Product
+    GetPage(
+      name: Routes.manageProduct,
+      page: () => const ManageProductPage(),
+      binding: BindingsBuilder(() {
+        Get.put(ManageProductController());
+      }),
+    ),
+    GetPage(name: Routes.editProduct, page: () => EditProductPage()),
   ];
 }
