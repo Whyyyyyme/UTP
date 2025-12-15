@@ -20,7 +20,10 @@ class ManageProductPage extends GetView<ManageProductController> {
           onPressed: () => Get.back(),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.more_horiz), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.more_horiz),
+            onPressed: () => _openMoreMenu(context),
+          ),
         ],
       ),
       body: Obx(() {
@@ -208,4 +211,62 @@ class ManageProductPage extends GetView<ManageProductController> {
       onTap: onTap,
     );
   }
+}
+
+void _openMoreMenu(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) {
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text(
+                'Hapus produk',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(context); // tutup bottomsheet dulu
+
+                final ok = await Get.dialog<bool>(
+                  AlertDialog(
+                    title: const Text('Hapus produk?'),
+                    content: const Text(
+                      'Produk yang dihapus tidak bisa dikembalikan.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Get.back(result: false),
+                        child: const Text('Batal'),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        onPressed: () => Get.back(result: true),
+                        child: const Text('Hapus'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (ok == true) {
+                  await Get.find<ManageProductController>().deleteProduct();
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      );
+    },
+  );
 }

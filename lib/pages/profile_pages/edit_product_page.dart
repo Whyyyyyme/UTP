@@ -28,9 +28,6 @@ class EditProductPage extends StatelessWidget {
         ),
         title: const Text('Edit'),
         centerTitle: true,
-        actions: [
-          IconButton(icon: const Icon(Icons.more_horiz), onPressed: () {}),
-        ],
       ),
       body: SellFormBody(
         onAfterSave: () => Get.back(),

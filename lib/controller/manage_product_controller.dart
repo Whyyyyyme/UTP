@@ -57,4 +57,31 @@ class ManageProductController extends GetxController {
         .update({'discount_active': enabled, 'updated_at': Timestamp.now()});
     await _load();
   }
+
+  Future<void> deleteProduct() async {
+    try {
+      isLoading.value = true;
+
+      await FirebaseFirestore.instance
+          .collection('products')
+          .doc(productId)
+          .delete();
+
+      Get.snackbar(
+        'Berhasil',
+        'Produk berhasil dihapus',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+
+      Get.back(); // keluar dari halaman manage product
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Gagal menghapus produk: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
 }
