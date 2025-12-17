@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:prelovedly/controller/home_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/widgets/homepage_widget.dart';
+import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/controller/like_controller.dart';
 
 class HomeContentPage extends StatelessWidget {
   const HomeContentPage({super.key});
@@ -11,6 +13,10 @@ class HomeContentPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.find<HomeController>();
+
+    final likeC = Get.isRegistered<LikeController>()
+        ? Get.find<LikeController>()
+        : Get.put(LikeController(), permanent: true);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -94,7 +100,17 @@ class HomeContentPage extends StatelessWidget {
                   itemCount: sellerIds.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 14),
                   itemBuilder: (context, i) {
-                    return SellerCard(sellerId: sellerIds[i]);
+                    final sid = sellerIds[i];
+
+                    return SellerCard(
+                      sellerId: sid,
+                      onTap: () {
+                        Get.toNamed(
+                          Routes.shopProfile, // pastikan ada di routes
+                          arguments: {"seller_id": sid},
+                        );
+                      },
+                    );
                   },
                 ),
               );
@@ -176,16 +192,61 @@ class HomeContentPage extends StatelessWidget {
                   childAspectRatio: 0.76,
                 ),
                 itemBuilder: (context, index) {
-                  final data = docs[index].data();
-                  final id = docs[index].id;
+                  final doc = docs[index];
+                  final data = doc.data();
+                  final productId = doc.id;
 
-                  return HotItemCard(
-                    id: id,
-                    data: data,
-                    onTap: () {
-                      // Get.toNamed(Routes.productDetail, arguments: {"id": id});
+                  final sellerId = (data['seller_id'] ?? '').toString();
+                  final viewerId =
+                      AuthController.to.user.value?.id ?? ''; // ✅ UID login
+
+                  return StreamBuilder<bool>(
+                    stream: viewerId.isEmpty
+                        ? Stream.value(false)
+                        : likeC.isLikedStream(
+                            viewerId: viewerId,
+                            productId: productId,
+                          ),
+                    builder: (context, likeSnap) {
+                      final liked = likeSnap.data == true;
+
+                      return HotItemCard(
+                        id: productId,
+                        data: data,
+                        isLiked: liked, // ✅ icon berubah
+                        onTap: () {
+                          Get.toNamed(
+                            Routes.productDetail,
+                            arguments: {
+                              "id": productId,
+                              "seller_id": sellerId,
+                              "viewer_id": viewerId,
+                              "is_me": viewerId == sellerId,
+                            },
+                          );
+                        },
+                        onLike: () async {
+                          if (viewerId.isEmpty) {
+                            Get.snackbar(
+                              'Login dulu',
+                              'Sesi kamu habis, silakan login ulang',
+                            );
+                            return;
+                          }
+
+                          try {
+                            await likeC.toggleLike(
+                              viewerId: viewerId,
+                              productId: productId,
+                              sellerId: sellerId,
+                              currentlyLiked: liked,
+                            );
+                          } catch (e) {
+                            Get.snackbar('Gagal', e.toString());
+                          }
+                        },
+                      );
                     },
-                    onLike: () {},
                   );
                 },
               );

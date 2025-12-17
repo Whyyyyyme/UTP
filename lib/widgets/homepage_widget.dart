@@ -296,6 +296,7 @@ class HotItemCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final VoidCallback onTap;
   final VoidCallback onLike;
+  final bool isLiked; // ✅ tambah
 
   const HotItemCard({
     super.key,
@@ -303,6 +304,7 @@ class HotItemCard extends StatelessWidget {
     required this.data,
     required this.onTap,
     required this.onLike,
+    required this.isLiked, // ✅ tambah
   });
 
   @override
@@ -360,7 +362,11 @@ class HotItemCard extends StatelessWidget {
                         color: Colors.white.withOpacity(0.9),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.favorite_border, size: 18),
+                      child: Icon(
+                        isLiked ? Icons.favorite : Icons.favorite_border, // ✅
+                        size: 18,
+                        color: isLiked ? Colors.red : Colors.black, // opsional
+                      ),
                     ),
                   ),
                 ),
@@ -397,5 +403,6 @@ String firstImageUrl(Map<String, dynamic> data) {
 
   final list =
       (data['image_urls'] as List?)?.map((e) => e.toString()).toList() ?? [];
+
   return list.isNotEmpty ? list.first : '';
 }

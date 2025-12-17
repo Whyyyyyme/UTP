@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:prelovedly/bindings/app_binding.dart';
 import 'package:prelovedly/controller/manage_product_controller.dart';
+import 'package:prelovedly/pages/product/product_detail_page.dart';
 import 'package:prelovedly/pages/profile_pages/address/address_list_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_product_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile_page.dart';
@@ -100,5 +101,6 @@ class AppPages {
       }),
     ),
     GetPage(name: Routes.editProduct, page: () => EditProductPage()),
+    GetPage(name: Routes.productDetail, page: () => const ProductDetailPage()),
   ];
 }
