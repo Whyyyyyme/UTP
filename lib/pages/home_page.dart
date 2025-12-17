@@ -107,8 +107,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
                 IconButton(
                   icon: const Icon(Icons.shopping_bag_outlined),
                   onPressed: () {
-                    // TODO: arahkan ke cart page
-                    // Get.toNamed(Routes.cart);
+                    Get.toNamed(Routes.cart);
                   },
                 ),
                 if (count > 0)

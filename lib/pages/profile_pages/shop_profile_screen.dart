@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/controller/like_controller.dart';
 import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/pages/profile_pages/followers_page.dart';
 import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/widgets/profile/likes_tab.dart';
+import 'package:prelovedly/controller/follow_controller.dart';
 
 class ShopProfileScreen extends StatelessWidget {
   final int initialTabIndex;
@@ -23,7 +26,7 @@ class ShopProfileScreen extends StatelessWidget {
       final bool expanded = showFullBio.value;
 
       final String displayText = (isLong && !expanded)
-          ? bio.substring(0, maxPreviewChars) + '...'
+          ? '${bio.substring(0, maxPreviewChars)}...'
           : bio;
 
       return Column(
@@ -35,9 +38,7 @@ class ShopProfileScreen extends StatelessWidget {
           ),
           if (isLong)
             TextButton(
-              onPressed: () {
-                showFullBio.value = !showFullBio.value;
-              },
+              onPressed: () => showFullBio.value = !showFullBio.value,
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
@@ -57,22 +58,36 @@ class ShopProfileScreen extends StatelessWidget {
     });
   }
 
-  /// TAB SHOP – sekarang seluruh tab dibungkus StreamBuilder,
-  /// jadi stat di header + grid produk semuanya mengikuti data Firestore.
+  /// ✅ Tab Shop (mode sendiri vs orang lain)
   Widget _buildShopTab({
-    required String userId,
+    required String viewerId, // user login
+    required String userId, // target profile
+    required bool isMe,
     required String nama,
     required String bio,
     required String fotoProfilUrl,
+    required FollowController followC,
   }) {
     final String initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
 
+    // ✅ Query produk:
+    // - kalau diri sendiri: tampilkan semua (published + draft), urut created_at
+    // - kalau orang lain: hanya published, urut updated_at (biar pakai index kamu)
+    final Stream<QuerySnapshot<Map<String, dynamic>>> productStream = isMe
+        ? FirebaseFirestore.instance
+              .collection('products')
+              .where('seller_id', isEqualTo: userId)
+              .orderBy('created_at', descending: true)
+              .snapshots()
+        : FirebaseFirestore.instance
+              .collection('products')
+              .where('seller_id', isEqualTo: userId)
+              .where('status', isEqualTo: 'published')
+              .orderBy('updated_at', descending: true)
+              .snapshots();
+
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('products')
-          .where('seller_id', isEqualTo: userId)
-          .orderBy('created_at', descending: true)
-          .snapshots(),
+      stream: productStream,
       builder: (context, snapshot) {
         final bool isLoading =
             snapshot.connectionState == ConnectionState.waiting;
@@ -88,7 +103,6 @@ class ShopProfileScreen extends StatelessWidget {
         }
 
         final docs = snapshot.data?.docs ?? [];
-
         final products = docs
             .map((d) => ShopProduct.fromDoc(d))
             .toList(growable: false);
@@ -96,8 +110,11 @@ class ShopProfileScreen extends StatelessWidget {
         final published = products
             .where((p) => !p.isDraft)
             .toList(growable: false);
-        final drafts = products.where((p) => p.isDraft).toList(growable: false);
-        final allProducts = [...published, ...drafts];
+        final drafts = isMe
+            ? products.where((p) => p.isDraft).toList(growable: false)
+            : <ShopProduct>[];
+
+        final allProducts = isMe ? [...published, ...drafts] : published;
 
         final int productCount = published.length;
 
@@ -106,7 +123,7 @@ class ShopProfileScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ============== HEADER PROFIL + STAT DINAMIS ==============
+              // ============== HEADER PROFIL + STAT ==============
               Row(
                 children: [
                   CircleAvatar(
@@ -146,13 +163,40 @@ class ShopProfileScreen extends StatelessWidget {
                               number: productCount.toString(),
                               label: 'produk',
                             ),
-                            const StatItemWidget(
-                              number: '0',
-                              label: 'followers',
+                            InkWell(
+                              onTap: () {
+                                Get.to(
+                                  () => FollowersFollowingPage(
+                                    userId: userId,
+                                    initialIndex: 0,
+                                  ),
+                                );
+                              },
+                              child: StreamBuilder<int>(
+                                stream: followC.followersCountStream(userId),
+                                builder: (_, s) => StatItemWidget(
+                                  number: '${s.data ?? 0}',
+                                  label: 'followers',
+                                ),
+                              ),
                             ),
-                            const StatItemWidget(
-                              number: '0',
-                              label: 'following',
+
+                            InkWell(
+                              onTap: () {
+                                Get.to(
+                                  () => FollowersFollowingPage(
+                                    userId: userId,
+                                    initialIndex: 1,
+                                  ),
+                                );
+                              },
+                              child: StreamBuilder<int>(
+                                stream: followC.followingCountStream(userId),
+                                builder: (_, s) => StatItemWidget(
+                                  number: '${s.data ?? 0}',
+                                  label: 'following',
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -178,30 +222,74 @@ class ShopProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // ============== TOMBOL EDIT & UPLOAD ==============
+              // ============== BUTTONS (beda mode) ==============
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.toNamed(Routes.editProfile);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[200],
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Edit profil'),
-                    ),
+                    child: isMe
+                        ? ElevatedButton(
+                            onPressed: () => Get.toNamed(Routes.editProfile),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[200],
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('Edit profil'),
+                          )
+                        : StreamBuilder<bool>(
+                            stream: Get.find<FollowController>()
+                                .isFollowingStream(
+                                  viewerId: viewerId,
+                                  targetUserId: userId,
+                                ),
+                            builder: (context, snap) {
+                              final following = snap.data == true;
+
+                              return ElevatedButton(
+                                onPressed: () async {
+                                  try {
+                                    await Get.find<FollowController>()
+                                        .toggleFollow(
+                                          viewerId: viewerId,
+                                          targetUserId: userId,
+                                          currentlyFollowing: following,
+                                        );
+                                  } catch (e) {
+                                    Get.snackbar('Gagal', e.toString());
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: following
+                                      ? Colors.grey[200]
+                                      : Colors.blue,
+                                  foregroundColor: following
+                                      ? Colors.black
+                                      : Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Text(following ? 'Following' : 'Follow'),
+                              );
+                            },
+                          ),
                   ),
+
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        // langsung ke flow jual
-                        Get.toNamed(Routes.sellProduct);
+                        if (isMe) {
+                          Get.toNamed(Routes.sellProduct);
+                        } else {
+                          // TODO: message/chat
+                          Get.snackbar(
+                            'Message',
+                            'Fitur message belum dihubungkan',
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey[200],
@@ -210,7 +298,7 @@ class ShopProfileScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text('Upload produk'),
+                      child: Text(isMe ? 'Upload produk' : 'Message'),
                     ),
                   ),
                 ],
@@ -255,26 +343,37 @@ class ShopProfileScreen extends StatelessWidget {
                     return InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () async {
+                        // ✅ draft hanya boleh dibuka kalau diri sendiri
                         if (product.isDraft) {
+                          if (!isMe) return;
+
                           final sell = Get.isRegistered<SellController>()
                               ? Get.find<SellController>()
                               : Get.put(SellController());
 
-                          await sell.loadDraft(
-                            product.id,
-                          ); // ✅ preload form + images(url/local)
+                          await sell.loadDraft(product.id);
                           Get.toNamed(
                             Routes.editDraft,
                             arguments: {"id": product.id},
                           );
-
                           return;
                         }
 
-                        Get.toNamed(
-                          '${Routes.manageProduct}?id=${product.id}&seller_id=$userId',
-                        );
+                        // ✅ published:
+                        if (isMe) {
+                          // profil sendiri -> manage product
+                          Get.toNamed(
+                            '${Routes.manageProduct}?id=${product.id}&seller_id=$userId',
+                          );
+                        } else {
+                          // profil orang lain -> detail product
+                          Get.toNamed(
+                            Routes.productDetail,
+                            arguments: {"id": product.id, "seller_id": userId},
+                          );
+                        }
                       },
+
                       child: _ProductCard(product: product),
                     );
                   },
@@ -286,7 +385,7 @@ class ShopProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showMenuBottomSheet(BuildContext context) {
+  void _showMenuBottomSheet(BuildContext context, {required bool isMe}) {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -304,14 +403,15 @@ class ShopProfileScreen extends StatelessWidget {
                 title: const Text('Share'),
                 onTap: () => Navigator.pop(context),
               ),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit profil'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Get.toNamed(Routes.editProfile);
-                },
-              ),
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('Edit profil'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Get.toNamed(Routes.editProfile);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.cancel_outlined),
                 title: const Text('Cancel'),
@@ -328,6 +428,11 @@ class ShopProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authC = Get.find<AuthController>();
     final args = Get.arguments;
+
+    final followC = Get.isRegistered<FollowController>()
+        ? Get.find<FollowController>()
+        : Get.put(FollowController(), permanent: true);
+
     final int initialIndexFromArgs =
         (args is Map && args['initialTabIndex'] is int)
         ? args['initialTabIndex'] as int
@@ -339,17 +444,21 @@ class ShopProfileScreen extends StatelessWidget {
         : initialIndexFromArgs;
 
     return Obx(() {
-      final profile = authC.user.value;
-
-      if (profile == null) {
+      final me = authC.user.value;
+      if (me == null) {
         return const Scaffold(body: Center(child: Text('Kamu belum login')));
       }
 
-      final String userId = profile.id;
-      final String nama = profile.nama;
-      final String username = profile.username;
-      final String bio = profile.bio;
-      final String fotoProfilUrl = profile.fotoProfilUrl;
+      // ✅ viewerId = user login
+      final String viewerId = me.id;
+
+      // ✅ target profile id (kalau ada arg seller_id / userId -> buka seller itu)
+      final String targetUserId =
+          (args is Map && (args['seller_id'] != null || args['userId'] != null))
+          ? ((args['seller_id'] ?? args['userId']).toString())
+          : me.id;
+
+      final bool isMe = targetUserId == me.id;
 
       return DefaultTabController(
         length: 3,
@@ -366,13 +475,13 @@ class ShopProfileScreen extends StatelessWidget {
                 }
               },
             ),
-            title: Text(username.isNotEmpty ? username : nama),
+            title: Text(
+              isMe ? (me.username.isNotEmpty ? me.username : me.nama) : 'Shop',
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.more_vert),
-                onPressed: () {
-                  _showMenuBottomSheet(context);
-                },
+                onPressed: () => _showMenuBottomSheet(context, isMe: isMe),
               ),
             ],
             centerTitle: true,
@@ -385,18 +494,79 @@ class ShopProfileScreen extends StatelessWidget {
               ],
             ),
           ),
-          body: TabBarView(
-            children: [
-              _buildShopTab(
-                userId: userId,
-                nama: nama,
-                bio: bio,
-                fotoProfilUrl: fotoProfilUrl,
-              ),
-              const EmptyLikesTab(),
-              const EmptyReviewsTab(),
-            ],
-          ),
+
+          body: isMe
+              ? TabBarView(
+                  children: [
+                    _buildShopTab(
+                      viewerId: viewerId,
+                      userId: viewerId,
+                      isMe: true,
+                      nama: me.nama,
+                      bio: me.bio,
+                      fotoProfilUrl: me.fotoProfilUrl,
+                      followC: followC,
+                    ),
+
+                    // ✅ FIX: pakai viewerId yang sudah didefinisikan
+                    LikesTab(
+                      viewerId: viewerId,
+                      likeC: Get.find<LikeController>(),
+                    ),
+
+                    const EmptyReviewsTab(),
+                  ],
+                )
+              : FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  future: FirebaseFirestore.instance
+                      .collection('users')
+                      .where('uid', isEqualTo: targetUserId)
+                      .limit(1)
+                      .get(),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snap.hasError) {
+                      return Center(
+                        child: Text(
+                          'Gagal memuat user: ${snap.error}',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      );
+                    }
+
+                    final data = (snap.data?.docs.isNotEmpty == true)
+                        ? snap.data!.docs.first.data()
+                        : <String, dynamic>{};
+
+                    final nama = (data['nama'] ?? data['username'] ?? 'Seller')
+                        .toString();
+                    final bio = (data['bio'] ?? '').toString();
+                    final foto = (data['foto_profil_url'] ?? '').toString();
+
+                    return TabBarView(
+                      children: [
+                        _buildShopTab(
+                          viewerId: viewerId,
+                          userId: targetUserId,
+                          isMe: false,
+                          nama: nama,
+                          bio: bio,
+                          fotoProfilUrl: foto,
+                          followC: followC,
+                        ),
+
+                        LikesTab(
+                          viewerId: viewerId,
+                          likeC: Get.find<LikeController>(),
+                        ),
+
+                        const EmptyReviewsTab(),
+                      ],
+                    );
+                  },
+                ),
         ),
       );
     });
@@ -412,7 +582,7 @@ class EmptyLikesTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset('assets/icons/heart_message.png', width: 100, height: 100),
+          Image.asset('assets/heart_message.png', width: 100, height: 100),
           const SizedBox(height: 16),
           const Text(
             'Belum ada likes',
@@ -433,7 +603,7 @@ class EmptyReviewsTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.star_border, size: 80, color: Colors.grey[400]),
+          Icon(Icons.star_border, size: 80, color: Colors.grey),
           const SizedBox(height: 16),
           const Text(
             'Belum ada ulasan',
@@ -465,7 +635,6 @@ class StatItemWidget extends StatelessWidget {
   }
 }
 
-/// Model sederhana untuk produk di tab Shop
 class ShopProduct {
   final String id;
   final String title;
@@ -486,11 +655,8 @@ class ShopProduct {
   factory ShopProduct.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
 
-    // 🔥 Ambil dari field "image_urls" (List<String>)
-    final List imageUrlsRaw = (data['image_urls'] as List?) ?? [];
-    final List<String> imageUrls = imageUrlsRaw
-        .map((e) => e.toString())
-        .toList();
+    final List raw = (data['image_urls'] as List?) ?? [];
+    final List<String> imageUrls = raw.map((e) => e.toString()).toList();
 
     final String firstImage =
         (data['thumbnail_url'] as String?) ??
@@ -504,15 +670,14 @@ class ShopProduct {
 
     return ShopProduct(
       id: doc.id,
-      title: data['title'] ?? '',
+      title: (data['title'] ?? '').toString(),
       imageUrl: firstImage,
       price: price,
-      status: data['status'] ?? 'draft',
+      status: (data['status'] ?? 'draft').toString(),
     );
   }
 }
 
-/// Kartu produk di grid (dengan label DRAFT jika status draft)
 class _ProductCard extends StatelessWidget {
   final ShopProduct product;
 
