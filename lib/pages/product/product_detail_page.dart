@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:prelovedly/controller/like_controller.dart';
+import 'package:prelovedly/controller/cart_controller.dart';
+import 'package:prelovedly/routes/app_routes.dart';
 
 class ProductDetailPage extends StatefulWidget {
   const ProductDetailPage({super.key});
@@ -341,9 +343,43 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     onNego: () {
                       Get.snackbar('Nego', 'Fitur nego belum dihubungkan');
                     },
-                    onBuy: () {
-                      Get.snackbar('Beli', 'Fitur beli belum dihubungkan');
+                    onBuy: () async {
+                      final viewerId =
+                          FirebaseAuth.instance.currentUser?.uid ?? '';
+
+                      if (viewerId.isEmpty) {
+                        Get.snackbar(
+                          'Login dulu',
+                          'Sesi kamu habis, silakan login ulang',
+                        );
+                        return;
+                      }
+
+                      // ✅ cegah beli barang sendiri (seller_id harus uid auth)
+                      if (sellerId == viewerId) {
+                        Get.snackbar(
+                          'Info',
+                          'Tidak bisa membeli produk sendiri',
+                        );
+                        return;
+                      }
+
+                      final cartC = Get.isRegistered<CartController>()
+                          ? Get.find<CartController>()
+                          : Get.put(CartController(), permanent: true);
+
+                      try {
+                        await cartC.addToCart(
+                          viewerId: viewerId,
+                          productId: productId,
+                        );
+
+                        Get.toNamed(Routes.cart);
+                      } catch (e) {
+                        Get.snackbar('Gagal', e.toString());
+                      }
                     },
+
                     onEdit: () {
                       // TODO: route edit
                       Get.snackbar('Edit', 'Arahkan ke edit produk');

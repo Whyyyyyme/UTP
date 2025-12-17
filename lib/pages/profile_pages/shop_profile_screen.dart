@@ -4,8 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:prelovedly/controller/auth_controller.dart';
 import 'package:prelovedly/controller/like_controller.dart';
 import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/pages/profile_pages/followers_page.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/widgets/profile/likes_tab.dart';
+import 'package:prelovedly/controller/follow_controller.dart';
 
 class ShopProfileScreen extends StatelessWidget {
   final int initialTabIndex;
@@ -64,6 +66,7 @@ class ShopProfileScreen extends StatelessWidget {
     required String nama,
     required String bio,
     required String fotoProfilUrl,
+    required FollowController followC,
   }) {
     final String initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
 
@@ -160,14 +163,41 @@ class ShopProfileScreen extends StatelessWidget {
                               number: productCount.toString(),
                               label: 'produk',
                             ),
-                            const StatItemWidget(
-                              number: '0',
-                              label: 'followers',
-                            ), // TODO
-                            const StatItemWidget(
-                              number: '0',
-                              label: 'following',
-                            ), // TODO
+                            InkWell(
+                              onTap: () {
+                                Get.to(
+                                  () => FollowersFollowingPage(
+                                    userId: userId,
+                                    initialIndex: 0,
+                                  ),
+                                );
+                              },
+                              child: StreamBuilder<int>(
+                                stream: followC.followersCountStream(userId),
+                                builder: (_, s) => StatItemWidget(
+                                  number: '${s.data ?? 0}',
+                                  label: 'followers',
+                                ),
+                              ),
+                            ),
+
+                            InkWell(
+                              onTap: () {
+                                Get.to(
+                                  () => FollowersFollowingPage(
+                                    userId: userId,
+                                    initialIndex: 1,
+                                  ),
+                                );
+                              },
+                              child: StreamBuilder<int>(
+                                stream: followC.followingCountStream(userId),
+                                builder: (_, s) => StatItemWidget(
+                                  number: '${s.data ?? 0}',
+                                  label: 'following',
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -196,28 +226,57 @@ class ShopProfileScreen extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (isMe) {
-                          Get.toNamed(Routes.editProfile);
-                        } else {
-                          // TODO: follow/unfollow
-                          Get.snackbar(
-                            'Follow',
-                            'Fitur follow belum dihubungkan',
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isMe ? Colors.grey[200] : Colors.blue,
-                        foregroundColor: isMe ? Colors.black : Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(isMe ? 'Edit profil' : 'Follow'),
-                    ),
+                    child: isMe
+                        ? ElevatedButton(
+                            onPressed: () => Get.toNamed(Routes.editProfile),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[200],
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('Edit profil'),
+                          )
+                        : StreamBuilder<bool>(
+                            stream: Get.find<FollowController>()
+                                .isFollowingStream(
+                                  viewerId: viewerId,
+                                  targetUserId: userId,
+                                ),
+                            builder: (context, snap) {
+                              final following = snap.data == true;
+
+                              return ElevatedButton(
+                                onPressed: () async {
+                                  try {
+                                    await Get.find<FollowController>()
+                                        .toggleFollow(
+                                          viewerId: viewerId,
+                                          targetUserId: userId,
+                                          currentlyFollowing: following,
+                                        );
+                                  } catch (e) {
+                                    Get.snackbar('Gagal', e.toString());
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: following
+                                      ? Colors.grey[200]
+                                      : Colors.blue,
+                                  foregroundColor: following
+                                      ? Colors.black
+                                      : Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Text(following ? 'Following' : 'Follow'),
+                              );
+                            },
+                          ),
                   ),
+
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
@@ -370,6 +429,10 @@ class ShopProfileScreen extends StatelessWidget {
     final authC = Get.find<AuthController>();
     final args = Get.arguments;
 
+    final followC = Get.isRegistered<FollowController>()
+        ? Get.find<FollowController>()
+        : Get.put(FollowController(), permanent: true);
+
     final int initialIndexFromArgs =
         (args is Map && args['initialTabIndex'] is int)
         ? args['initialTabIndex'] as int
@@ -442,6 +505,7 @@ class ShopProfileScreen extends StatelessWidget {
                       nama: me.nama,
                       bio: me.bio,
                       fotoProfilUrl: me.fotoProfilUrl,
+                      followC: followC,
                     ),
 
                     // ✅ FIX: pakai viewerId yang sudah didefinisikan
@@ -490,6 +554,7 @@ class ShopProfileScreen extends StatelessWidget {
                           nama: nama,
                           bio: bio,
                           fotoProfilUrl: foto,
+                          followC: followC,
                         ),
 
                         LikesTab(

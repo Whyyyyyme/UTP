@@ -34,4 +34,6 @@ abstract class Routes {
   static const manageProduct = '/manage-product';
   static const editProduct = '/edit-product';
   static const productDetail = '/product-detail';
+
+  static const cart = '/cart';
 }
