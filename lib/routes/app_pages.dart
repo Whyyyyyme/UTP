@@ -29,6 +29,8 @@ import 'package:prelovedly/pages/Register_pages/register_nama.dart';
 import 'package:prelovedly/pages/Register_pages/register_username.dart';
 import 'package:prelovedly/pages/Register_pages/register_password.dart';
 
+import 'package:prelovedly/pages/admin_pages/admin_dashboard_page.dart';
+
 class AppPages {
   AppPages._();
 
@@ -37,6 +39,7 @@ class AppPages {
   static final routes = <GetPage>[
     // Login & Register
     GetPage(name: Routes.login, page: () => LoginPage()),
+    GetPage(name: Routes.adminDashboard, page: () => const AdminDashboardPage()),
     GetPage(name: Routes.registerEmail, page: () => const EmailRegisterPage()),
     GetPage(
       name: Routes.registerName,
@@ -100,5 +103,11 @@ class AppPages {
       }),
     ),
     GetPage(name: Routes.editProduct, page: () => EditProductPage()),
+
+    // Admin Dashboard
+    GetPage(
+    name: Routes.adminDashboard, 
+    page: () => const AdminDashboardPage(),
+),
   ];
 }

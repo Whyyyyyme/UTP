@@ -412,7 +412,7 @@ class EmptyLikesTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset('assets/heart_message.png', width: 100, height: 100),
+          Image.asset('assets/icons/heart_message.png', width: 100, height: 100),
           const SizedBox(height: 16),
           const Text(
             'Belum ada likes',

@@ -3,7 +3,11 @@ import 'package:get/get.dart';
 import 'package:prelovedly/controller/login_controller.dart';
 import 'Register_pages/register_email.dart';
 
+
+
 class LoginPage extends StatelessWidget {
+
+  
   LoginPage({super.key});
 
   final TextEditingController _emailController = TextEditingController();
@@ -70,6 +74,8 @@ class LoginPage extends StatelessWidget {
                     onPressed: isLoading
                         ? null
                         : () async {
+                            // Cukup panggil fungsi ini saja
+                            // Controller sudah punya logic Get.offAllNamed di dalamnya
                             await loginController.login(
                               _emailController.text.trim(),
                               _passwordController.text.trim(),
