@@ -1,26 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-// TODO: sesuaikan dengan file register/login milikmu
-import 'Register_pages/register_email.dart'; // contoh: EmailRegisterPage
-// import 'email_login_page.dart'; // kalau kamu punya halaman login email terpisah
+import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/pages/email_login_page.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
+
+  void _snack(String msg) {
+    Get.snackbar(
+      "Info",
+      msg,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.black.withOpacity(0.75),
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(16),
+      borderRadius: 12,
+      duration: const Duration(seconds: 2),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // BACKGROUND (kosongin aja, nanti kamu custom)
+          // BACKGROUND (kosong dulu - nanti kamu custom pakai image)
           Container(
             width: double.infinity,
             height: double.infinity,
-            color: Colors.black12, // placeholder background
+            color: Colors.black12,
           ),
 
-          // Overlay gelap biar teks/button kebaca
+          // Overlay gelap
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -50,7 +61,6 @@ class LoginPage extends StatelessWidget {
                     children: [
                       const SizedBox(height: 90),
 
-                      // LOGO / TITLE
                       const Text(
                         "PRELOVEDLY",
                         style: TextStyle(
@@ -71,34 +81,24 @@ class LoginPage extends StatelessWidget {
 
                       const SizedBox(height: 140),
 
-                      // BUTTON: Google
+                      // Google (dummy)
                       _AuthButton(
                         background: Colors.white,
                         foreground: Colors.black,
-                        icon: _CircleIcon(
+                        icon: const _CircleIcon(
                           child: Text(
                             "G",
                             style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                         text: "Masuk lewat Google",
-                        onPressed: () {
-                          Get.snackbar(
-                            "Info",
-                            "Google Sign-In belum diaktifkan",
-                            snackPosition: SnackPosition.TOP,
-                            backgroundColor: Colors.black.withOpacity(0.75),
-                            colorText: Colors.white,
-                            margin: const EdgeInsets.all(16),
-                            borderRadius: 12,
-                            duration: const Duration(seconds: 2),
-                          );
-                        },
+                        onPressed: () =>
+                            _snack("Google Sign-In belum diaktifkan"),
                       ),
 
                       const SizedBox(height: 12),
 
-                      // BUTTON: Apple
+                      // Apple (dummy)
                       _AuthButton(
                         background: Colors.white,
                         foreground: Colors.black,
@@ -108,17 +108,13 @@ class LoginPage extends StatelessWidget {
                           size: 24,
                         ),
                         text: "Masuk lewat Apple",
-                        onPressed: () {
-                          Get.snackbar(
-                            "Info",
-                            "Apple Sign-In belum diaktifkan",
-                          );
-                        },
+                        onPressed: () =>
+                            _snack("Apple Sign-In belum diaktifkan"),
                       ),
 
                       const SizedBox(height: 18),
 
-                      // "atau" + garis
+                      // atau
                       Row(
                         children: [
                           Expanded(
@@ -145,17 +141,15 @@ class LoginPage extends StatelessWidget {
 
                       const SizedBox(height: 18),
 
-                      // BUTTON: Daftar dengan email (outline)
+                      // Daftar email -> flow register lama kamu (Routes.registerEmail)
                       _OutlineAuthButton(
                         text: "Daftar dengan email",
-                        onPressed: () {
-                          Get.to(() => const EmailRegisterPage());
-                        },
+                        onPressed: () => Get.toNamed(Routes.registerEmail),
                       ),
 
                       const SizedBox(height: 22),
 
-                      // Sudah punya account? Login
+                      // Sudah punya account? Login -> EmailLoginPage
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -166,15 +160,7 @@ class LoginPage extends StatelessWidget {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () {
-                              // Kalau kamu masih mau login email+password di halaman ini,
-                              // kamu bisa arahkan ke halaman login email terpisah.
-                              // Get.to(() => const EmailLoginPage());
-                              Get.snackbar(
-                                "Info",
-                                "Arahkan ke halaman login email kamu",
-                              );
-                            },
+                            onTap: () => Get.to(() => const EmailLoginPage()),
                             child: const Text(
                               "Login",
                               style: TextStyle(
@@ -189,12 +175,9 @@ class LoginPage extends StatelessWidget {
 
                       const SizedBox(height: 18),
 
-                      // Register nanti (skip)
+                      // Register nanti (optional)
                       GestureDetector(
-                        onTap: () {
-                          // TODO: arahkan ke home / guest mode kalau ada
-                          Get.snackbar("Info", "Guest mode belum diatur");
-                        },
+                        onTap: () => _snack("Guest mode belum diatur"),
                         child: const Text(
                           "Register nanti",
                           style: TextStyle(
@@ -217,8 +200,7 @@ class LoginPage extends StatelessWidget {
   }
 }
 
-// ---------- WIDGETS KECIL ----------
-
+// ---------- WIDGETS ----------
 class _AuthButton extends StatelessWidget {
   final Color background;
   final Color foreground;
