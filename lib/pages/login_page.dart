@@ -22,186 +22,222 @@ class LoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // BACKGROUND (kosong dulu - nanti kamu custom pakai image)
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: Colors.black12,
-          ),
+      body: LayoutBuilder(
+        builder: (context, c) {
+          final h = c.maxHeight;
 
-          // Overlay gelap
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x66000000),
-                  Color(0xB3000000),
-                  Color(0xE6000000),
-                ],
-              ),
-            ),
-          ),
+          // Skala sederhana biar semua komponen "muat" (tanpa scroll)
+          // Layar tinggi: scale ~1, layar pendek: turun sampai 0.85
+          final scale = (h / 760).clamp(0.85, 1.0);
 
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 18,
+          final logoWidth = 220 * scale;
+          final topPad = 70 * scale;
+          final midGap = 90 * scale;
+          final btnH = 52 * scale;
+          final gap12 = 12 * scale;
+          final gap18 = 18 * scale;
+          final gap22 = 22 * scale;
+
+          return Stack(
+            children: [
+              // Background (placeholder - ganti pakai gambar jika mau)
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage('assets/images/baground6.jpg'),
+                    fit: BoxFit.cover,
+                  ),
                 ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 90),
+              ),
 
-                      const Text(
-                        "PRELOVEDLY",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 36,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "Indonesia",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 16,
-                        ),
-                      ),
 
-                      const SizedBox(height: 140),
-
-                      // Google (dummy)
-                      _AuthButton(
-                        background: Colors.white,
-                        foreground: Colors.black,
-                        icon: const _CircleIcon(
-                          child: Text(
-                            "G",
-                            style: TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                        text: "Masuk lewat Google",
-                        onPressed: () =>
-                            _snack("Google Sign-In belum diaktifkan"),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Apple (dummy)
-                      _AuthButton(
-                        background: Colors.white,
-                        foreground: Colors.black,
-                        icon: const Icon(
-                          Icons.apple,
-                          color: Colors.black,
-                          size: 24,
-                        ),
-                        text: "Masuk lewat Apple",
-                        onPressed: () =>
-                            _snack("Apple Sign-In belum diaktifkan"),
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // atau
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: Colors.white.withOpacity(0.35),
-                            ),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              "atau",
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: Colors.white.withOpacity(0.35),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // Daftar email -> flow register lama kamu (Routes.registerEmail)
-                      _OutlineAuthButton(
-                        text: "Daftar dengan email",
-                        onPressed: () => Get.toNamed(Routes.registerEmail),
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      // Sudah punya account? Login -> EmailLoginPage
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Sudah punya account? ",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.85),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => Get.to(() => const EmailLoginPage()),
-                            child: const Text(
-                              "Login",
-                              style: TextStyle(
-                                color: Colors.white,
-                                decoration: TextDecoration.underline,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // Register nanti (optional)
-                      GestureDetector(
-                        onTap: () => _snack("Guest mode belum diatur"),
-                        child: const Text(
-                          "Register nanti",
-                          style: TextStyle(
-                            color: Colors.white,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 30),
+              // Overlay gelap
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x66000000),
+                      Color(0xB3000000),
+                      Color(0xE6000000),
                     ],
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 18,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Column(
+                        children: [
+                          SizedBox(height: topPad),
+
+                          // LOGO
+                          Image.asset(
+                            'assets/images/logoPreTransparant.png',
+                            width: logoWidth,
+                            fit: BoxFit.contain,
+                          ),
+
+                          SizedBox(height: 10 * scale),
+
+                          Text(
+                            "Indonesia",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16 * scale,
+                            ),
+                          ),
+
+                          SizedBox(height: midGap),
+
+                          // BUTTON Google
+                          _AuthButton(
+                            height: btnH,
+                            background: Colors.white,
+                            foreground: Colors.black,
+                            icon: const _CircleIcon(
+                              child: Text(
+                                "G",
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
+                            ),
+                            text: "Masuk lewat Google",
+                            onPressed: () =>
+                                _snack("Google Sign-In belum diaktifkan"),
+                          ),
+
+                          SizedBox(height: gap12),
+
+                          // BUTTON Apple
+                          _AuthButton(
+                            height: btnH,
+                            background: Colors.white,
+                            foreground: Colors.black,
+                            icon: Icon(
+                              Icons.apple,
+                              color: Colors.black,
+                              size: 24 * scale,
+                            ),
+                            text: "Masuk lewat Apple",
+                            onPressed: () =>
+                                _snack("Apple Sign-In belum diaktifkan"),
+                          ),
+
+                          SizedBox(height: gap18),
+
+                          // atau
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  color: Colors.white.withOpacity(0.35),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10 * scale,
+                                ),
+                                child: Text(
+                                  "atau",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14 * scale,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  color: Colors.white.withOpacity(0.35),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: gap18),
+
+                          // Daftar email
+                          _OutlineAuthButton(
+                            height: btnH,
+                            text: "Daftar dengan email",
+                            onPressed: () => Get.toNamed(Routes.registerEmail),
+                          ),
+
+                          SizedBox(height: gap22),
+
+                          // Sudah punya account? Login
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Sudah punya account? ",
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.85),
+                                  fontSize: 14 * scale,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () =>
+                                    Get.to(() => const EmailLoginPage()),
+                                child: Text(
+                                  "Login",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    decoration: TextDecoration.underline,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14 * scale,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 14 * scale),
+
+                          // Register nanti
+                          GestureDetector(
+                            onTap: () => _snack("Guest mode belum diatur"),
+                            child: Text(
+                              "Register nanti",
+                              style: TextStyle(
+                                color: Colors.white,
+                                decoration: TextDecoration.underline,
+                                fontSize: 14 * scale,
+                              ),
+                            ),
+                          ),
+
+                          const Spacer(), // dorong konten supaya tetap rata & fixed
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-// ---------- WIDGETS ----------
+// ---------- widgets ----------
 class _AuthButton extends StatelessWidget {
+  final double height;
   final Color background;
   final Color foreground;
   final Widget icon;
@@ -209,6 +245,7 @@ class _AuthButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   const _AuthButton({
+    required this.height,
     required this.background,
     required this.foreground,
     required this.icon,
@@ -219,15 +256,12 @@ class _AuthButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 52,
+      height: height,
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: icon,
-        label: Text(
-          text,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
+        label: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
         style: ElevatedButton.styleFrom(
           backgroundColor: background,
           foregroundColor: foreground,
@@ -242,15 +276,20 @@ class _AuthButton extends StatelessWidget {
 }
 
 class _OutlineAuthButton extends StatelessWidget {
+  final double height;
   final String text;
   final VoidCallback onPressed;
 
-  const _OutlineAuthButton({required this.text, required this.onPressed});
+  const _OutlineAuthButton({
+    required this.height,
+    required this.text,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 52,
+      height: height,
       width: double.infinity,
       child: OutlinedButton(
         onPressed: onPressed,
@@ -261,10 +300,7 @@ class _OutlineAuthButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
+        child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
       ),
     );
   }
