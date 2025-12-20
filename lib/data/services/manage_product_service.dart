@@ -18,4 +18,21 @@ class ManageProductService {
   Future<void> deleteProduct(String productId) {
     return productRef(productId).delete();
   }
+
+  Stream<int> likesCountStream(String productId) {
+    return _db
+        .collection('products')
+        .doc(productId)
+        .collection('likes')
+        .snapshots()
+        .map((s) => s.size);
+  }
+
+  Stream<int> cartsCountStream(String productId) {
+    return _db
+        .collectionGroup('items')
+        .where('product_id', isEqualTo: productId)
+        .snapshots()
+        .map((s) => s.size);
+  }
 }

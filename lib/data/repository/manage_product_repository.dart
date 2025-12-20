@@ -32,4 +32,14 @@ class ManageProductRepository {
   Future<void> deleteProduct(String productId) {
     return _service.deleteProduct(productId);
   }
+
+  Stream<int> likesCountStream(String productId) {
+    if (productId.isEmpty) return Stream<int>.value(0);
+    return _service.likesCountStream(productId);
+  }
+
+  Stream<int> cartsCountStream(String productId) {
+    if (productId.isEmpty) return Stream<int>.value(0);
+    return _service.cartsCountStream(productId);
+  }
 }

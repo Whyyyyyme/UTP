@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/login_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/view_model/login_controller.dart';
 
 class EmailLoginPage extends StatelessWidget {
   const EmailLoginPage({super.key});
@@ -89,7 +89,6 @@ class EmailLoginPage extends StatelessWidget {
                           ? null
                           : () async {
                               await controller.login(emailC.text, passC.text);
-                              // NOTE: redirect ke home/admin sudah dilakukan di LoginController
                             },
                       style: ElevatedButton.styleFrom(
                         shape: RoundedRectangleBorder(
@@ -107,8 +106,7 @@ class EmailLoginPage extends StatelessWidget {
                   );
                 }),
 
-                const SizedBox(height: 12),
-
+                // const SizedBox(height: 10),
                 TextButton(
                   onPressed: () => Get.toNamed(Routes.registerEmail),
                   child: const Text("Belum punya akun? Daftar dengan email"),

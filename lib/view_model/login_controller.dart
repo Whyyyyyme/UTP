@@ -39,8 +39,18 @@ class LoginController extends GetxController {
         return;
       }
 
-      // sukses -> AuthController sudah set user + sync home viewer
-      Get.offAllNamed(Routes.home);
+      final user = _authC.user.value;
+
+      // fallback kalau null / role kosong
+      final role = (user?.role.trim().toLowerCase().isNotEmpty ?? false)
+          ? user!.role.trim().toLowerCase()
+          : 'pembeli';
+
+      if (role == 'admin') {
+        Get.offAllNamed(Routes.adminDashboard);
+      } else {
+        Get.offAllNamed(Routes.home);
+      }
     } catch (e) {
       errorMessage.value = 'Terjadi kesalahan: $e';
     } finally {

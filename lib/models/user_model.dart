@@ -67,6 +67,7 @@ extension UserModelCopy on UserModel {
       alamat: alamat,
       noTelp: noTelp,
       fotoProfilUrl: fotoProfilUrl ?? this.fotoProfilUrl,
+      role: '',
     );
   }
 }

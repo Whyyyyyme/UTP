@@ -118,20 +118,25 @@ class ManageProductPage extends GetView<ManageProductController> {
             const SizedBox(height: 12),
 
             // ====== Stats ======
-            Row(
-              children: [
-                _chip(Icons.favorite_border, '${controller.likes.value} Likes'),
-                const SizedBox(width: 8),
-                _chip(
-                  Icons.chat_bubble_outline,
-                  '${controller.offers.value} Offer',
-                ),
-                const SizedBox(width: 8),
-                _chip(
-                  Icons.shopping_bag_outlined,
-                  '${controller.carts.value} Keranjang',
-                ),
-              ],
+            Obx(
+              () => Row(
+                children: [
+                  _chip(
+                    Icons.favorite_border,
+                    '${controller.likes.value} Likes',
+                  ),
+                  const SizedBox(width: 8),
+                  _chip(
+                    Icons.chat_bubble_outline,
+                    '${controller.offers.value} Offer',
+                  ),
+                  const SizedBox(width: 8),
+                  _chip(
+                    Icons.shopping_bag_outlined,
+                    '${controller.carts.value} Keranjang',
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 24),
