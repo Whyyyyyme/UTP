@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 
 class StylePickerPage extends StatelessWidget {
   const StylePickerPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final SellController controller = Get.find<SellController>();
+    final sell = Get.find<SellController>();
 
     return Scaffold(
       appBar: AppBar(
@@ -24,7 +24,6 @@ class StylePickerPage extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ===== LABEL BATAS =====
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
             child: Text(
@@ -33,22 +32,20 @@ class StylePickerPage extends StatelessWidget {
             ),
           ),
 
-          // ===== LIST STYLES =====
           Expanded(
             child: Obx(() {
-              controller.selectedStyles.length; // ✅ paksa Obx baca RxList
-
-              final selectedList = controller.selectedStyles;
+              // ✅ pastikan Rx terbaca
+              final _ = sell.selectedStyles.length;
 
               return ListView.separated(
-                itemCount: controller.availableStyles.length,
+                itemCount: sell.availableStyles.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
-                  final item = controller.availableStyles[index];
-                  final isSelected = selectedList.contains(item);
+                  final item = sell.availableStyles[index];
+                  final isSelected = sell.selectedStyles.contains(item);
 
                   return InkWell(
-                    onTap: () => controller.selectStyle(item),
+                    onTap: () => sell.selectStyle(item),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -59,7 +56,7 @@ class StylePickerPage extends StatelessWidget {
                           Expanded(child: Text(item)),
                           Checkbox(
                             value: isSelected,
-                            onChanged: (_) => controller.selectStyle(item),
+                            onChanged: (_) => sell.selectStyle(item),
                           ),
                         ],
                       ),
@@ -70,9 +67,8 @@ class StylePickerPage extends StatelessWidget {
             }),
           ),
 
-          // ===== TOMBOL SIMPAN (HARUS Obx) =====
           Obx(() {
-            final disabled = controller.selectedStyles.isEmpty;
+            final disabled = sell.selectedStyles.isEmpty;
 
             return Container(
               width: double.infinity,

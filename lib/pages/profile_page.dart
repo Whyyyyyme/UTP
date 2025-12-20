@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 
 class ProfilePage extends StatelessWidget {

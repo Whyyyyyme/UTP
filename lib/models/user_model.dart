@@ -45,3 +45,23 @@ class UserModel {
     };
   }
 }
+
+extension UserModelCopy on UserModel {
+  UserModel copyWith({
+    String? fotoProfilUrl,
+    String? nama,
+    String? username,
+    String? bio,
+  }) {
+    return UserModel(
+      id: id,
+      email: email,
+      nama: nama ?? this.nama,
+      username: username ?? this.username,
+      bio: bio ?? this.bio,
+      alamat: alamat,
+      noTelp: noTelp,
+      fotoProfilUrl: fotoProfilUrl ?? this.fotoProfilUrl,
+    );
+  }
+}

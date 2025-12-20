@@ -6,7 +6,7 @@ class BrandController extends GetxController {
 
   // Method to set the brand
   void setBrand(String value) {
-    brand.value = value.trim();
+    brand.value = value;
   }
 
   // Method to get the current brand value

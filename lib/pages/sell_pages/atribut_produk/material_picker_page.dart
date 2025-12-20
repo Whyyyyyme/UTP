@@ -1,18 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/product/material_picker_controller.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/product/material_picker_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 
-class MaterialPickerPage extends StatelessWidget {
+class MaterialPickerPage extends StatefulWidget {
   const MaterialPickerPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mengakses MaterialPickerController
-    final MaterialPickerController controller = Get.put(
-      MaterialPickerController(),
-    );
+  State<MaterialPickerPage> createState() => _MaterialPickerPageState();
+}
 
+class _MaterialPickerPageState extends State<MaterialPickerPage> {
+  late final MaterialPickerController c;
+  late final SellController sell;
+
+  @override
+  void initState() {
+    super.initState();
+    c = Get.find<MaterialPickerController>();
+    sell = Get.find<SellController>();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      c.preloadFromSell(sell.material.value);
+    });
+  }
+
+  void _save() {
+    if (!c.canSave) return;
+    sell.setMaterial(c.selectedAsString); // ✅ commit via SellController
+    Get.back();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -34,7 +54,6 @@ class MaterialPickerPage extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Subheader
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
             child: Text(
@@ -43,20 +62,18 @@ class MaterialPickerPage extends StatelessWidget {
             ),
           ),
 
-          // List material
-          // List material
           Expanded(
             child: Obx(() {
-              controller.selectedList.length; // paksa Obx baca RxList
+              // ✅ WAJIB: paksa Obx membaca Rx
+              final _ = c.selected.length;
+              final selected = c.selected; // RxList<String>
 
               return ListView.separated(
-                itemCount: controller.materials.length,
+                itemCount: c.materials.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
-                  final item = controller.materials[index];
-                  final isSelected = controller.selectedList.contains(
-                    item.name,
-                  );
+                  final item = c.materials[index];
+                  final isSelected = selected.contains(item.name);
 
                   return ListTile(
                     title: Text(
@@ -69,19 +86,9 @@ class MaterialPickerPage extends StatelessWidget {
                     ),
                     trailing: Checkbox(
                       value: isSelected,
-                      onChanged: (_) {
-                        controller.toggleMaterialSelection(
-                          item.name,
-                          !isSelected,
-                        );
-                      },
+                      onChanged: (_) => c.toggle(item.name),
                     ),
-                    onTap: () {
-                      controller.toggleMaterialSelection(
-                        item.name,
-                        !isSelected,
-                      );
-                    },
+                    onTap: () => c.toggle(item.name),
                   );
                 },
               );
@@ -89,7 +96,8 @@ class MaterialPickerPage extends StatelessWidget {
           ),
 
           Obx(() {
-            final disabled = controller.selectedList.isEmpty;
+            // ✅ canSave harus baca Rx (lihat controller di bawah)
+            final disabled = !c.canSave;
 
             return Container(
               width: double.infinity,
@@ -102,15 +110,7 @@ class MaterialPickerPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                onPressed: disabled
-                    ? null
-                    : () {
-                        final sell = Get.find<SellController>();
-                        sell.material.value = controller.selectedList.join(
-                          ', ',
-                        );
-                        Get.back();
-                      },
+                onPressed: disabled ? null : _save,
                 child: const Text(
                   'Simpan',
                   style: TextStyle(

@@ -1,8 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/auth_controller.dart';
-import 'package:prelovedly/controller/follow_controller.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
+import 'package:prelovedly/view_model/follow_controller.dart';
+import 'package:prelovedly/models/user_model.dart';
 
 class FollowersFollowingPage extends StatelessWidget {
   final String userId; // target profile
@@ -18,9 +18,9 @@ class FollowersFollowingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final viewerId = AuthController.to.user.value?.id ?? '';
 
-    final followC = Get.isRegistered<FollowController>()
-        ? Get.find<FollowController>()
-        : Get.put(FollowController(), permanent: true);
+    // ✅ Wajibnya controller sudah dari binding AppPages.
+    // Kalau belum, boleh fallback Get.put tapi harus kasih repo di constructor (jadi mending binding).
+    final followC = Get.find<FollowController>();
 
     return DefaultTabController(
       length: 2,
@@ -96,8 +96,8 @@ enum _FollowListMode { followers, following }
 
 class _FollowList extends StatelessWidget {
   final _FollowListMode mode;
-  final String profileUserId; // user yg lagi dibuka listnya
-  final String viewerId; // user login
+  final String profileUserId;
+  final String viewerId;
   final FollowController followC;
 
   const _FollowList({
@@ -109,18 +109,11 @@ class _FollowList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final db = FirebaseFirestore.instance;
+    final Stream<List<String>> stream = (mode == _FollowListMode.followers)
+        ? followC.followersIdsStream(profileUserId)
+        : followC.followingIdsStream(profileUserId);
 
-    final col = (mode == _FollowListMode.followers) ? 'followers' : 'following';
-
-    final stream = db
-        .collection('users')
-        .doc(profileUserId)
-        .collection(col)
-        .orderBy('created_at', descending: true)
-        .snapshots();
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<List<String>>(
       stream: stream,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
@@ -135,8 +128,8 @@ class _FollowList extends StatelessWidget {
           );
         }
 
-        final docs = snap.data?.docs ?? [];
-        if (docs.isEmpty) {
+        final ids = snap.data ?? [];
+        if (ids.isEmpty) {
           return Center(
             child: Text(
               mode == _FollowListMode.followers
@@ -149,11 +142,11 @@ class _FollowList extends StatelessWidget {
 
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-          itemCount: docs.length,
+          itemCount: ids.length,
           separatorBuilder: (_, __) =>
               Divider(height: 1, color: Colors.grey.shade200),
           itemBuilder: (context, i) {
-            final otherUid = docs[i].id; // docId = uid user lain
+            final otherUid = ids[i];
             return _UserRow(
               otherUid: otherUid,
               viewerId: viewerId,
@@ -179,22 +172,17 @@ class _UserRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final db = FirebaseFirestore.instance;
-
-    return FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      future: db
-          .collection('users')
-          .where('uid', isEqualTo: otherUid)
-          .limit(1)
-          .get(),
+    return FutureBuilder<UserModel?>(
+      future: followC.fetchUser(otherUid), // ✅ no firestore in view
       builder: (context, snap) {
-        final data = (snap.data?.docs.isNotEmpty ?? false)
-            ? snap.data!.docs.first.data()
-            : <String, dynamic>{};
+        final user = snap.data;
 
-        final username = (data['username'] ?? otherUid).toString();
-        final nama = (data['nama'] ?? '').toString();
-        final foto = (data['foto_profil_url'] ?? '').toString();
+        final username = user?.username.isNotEmpty == true
+            ? user!.username
+            : otherUid;
+
+        final nama = user?.nama ?? '';
+        final foto = user?.fotoProfilUrl ?? '';
 
         final isMe = viewerId.isNotEmpty && viewerId == otherUid;
 
@@ -251,15 +239,14 @@ class _UserRow extends StatelessWidget {
                             );
                             return;
                           }
-                          try {
-                            await followC.toggleFollow(
-                              viewerId: viewerId,
-                              targetUserId: otherUid,
-                              currentlyFollowing: following,
-                            );
-                          } catch (e) {
-                            Get.snackbar('Gagal', e.toString());
-                          }
+
+                          final (ok, msg) = await followC.toggleFollow(
+                            viewerId: viewerId,
+                            targetUserId: otherUid,
+                            currentlyFollowing: following,
+                          );
+
+                          if (!ok) Get.snackbar('Gagal', msg);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,

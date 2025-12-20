@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
 
 class EditUsernamePage extends StatefulWidget {
   final String initialUsername;
@@ -12,9 +12,12 @@ class EditUsernamePage extends StatefulWidget {
 }
 
 class _EditUsernamePageState extends State<EditUsernamePage> {
-  late TextEditingController _usernameC;
+  final AuthController authC = Get.find<AuthController>();
+
   final _formKey = GlobalKey<FormState>();
   final _regex = RegExp(r'^[a-zA-Z0-9]+$');
+
+  late TextEditingController _usernameC;
 
   @override
   void initState() {
@@ -31,12 +34,17 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final authC = Get.find<AuthController>();
     final newUsername = _usernameC.text.trim();
+
+    // kalau tidak berubah, langsung back
+    if (newUsername == widget.initialUsername) {
+      Get.back();
+      return;
+    }
 
     await authC.updateProfile(username: newUsername);
 
-    Get.back(); // kembali ke EditProfilePage
+    Get.back();
     Get.snackbar(
       'Berhasil',
       'Username berhasil diperbarui',
@@ -46,8 +54,6 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
 
   @override
   Widget build(BuildContext context) {
-    final authC = Get.find<AuthController>();
-
     return Obx(() {
       final isLoading = authC.isLoading.value;
 
@@ -68,13 +74,19 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
           actions: [
             TextButton(
               onPressed: isLoading ? null : _save,
-              child: Text(
-                'Simpan',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: isLoading ? Colors.grey : Colors.black,
-                ),
-              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text(
+                      'Simpan',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
             ),
           ],
         ),
@@ -83,17 +95,23 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
           child: Form(
             key: _formKey,
             child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
               ),
-              padding: const EdgeInsets.all(16),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextFormField(
                     controller: _usernameC,
-                    decoration: const InputDecoration(border: InputBorder.none),
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => isLoading ? null : _save(),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Masukkan username',
+                    ),
                     validator: (val) {
                       final v = val?.trim() ?? '';
                       if (v.isEmpty) {
@@ -102,13 +120,16 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
                       if (!_regex.hasMatch(v)) {
                         return 'Hanya boleh huruf dan angka';
                       }
+                      if (v.length < 3) {
+                        return 'Username minimal 3 karakter';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Hanya boleh huruf dan angka',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  const Text(
+                    'Hanya huruf dan angka, tanpa spasi.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),

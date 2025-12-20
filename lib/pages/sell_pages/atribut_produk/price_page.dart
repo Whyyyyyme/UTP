@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 
 class PricePage extends StatelessWidget {
   const PricePage({super.key});
@@ -97,16 +97,11 @@ class PricePage extends StatelessWidget {
                                 ),
                               ),
 
-                              // Switch reaktif + auto clear promo saat off
+                              // Switch reaktif
                               Obx(() {
                                 return Switch(
                                   value: controller.promoActive.value,
-                                  onChanged: (val) {
-                                    controller.togglePromo(val);
-                                    if (!val)
-                                      controller.promoC
-                                          .clear(); // ✅ clear saat off
-                                  },
+                                  onChanged: controller.setPromoActive,
                                 );
                               }),
                             ],
@@ -119,7 +114,9 @@ class PricePage extends StatelessWidget {
                           if (!active) return const SizedBox.shrink();
 
                           final price = controller.parseInt(
-                            controller.priceText.value,
+                            controller.priceText.value.isNotEmpty
+                                ? controller.priceText.value
+                                : controller.priceC.text,
                           );
                           final maxPromo = price == null
                               ? 0
@@ -161,7 +158,6 @@ class PricePage extends StatelessWidget {
                                           border: InputBorder.none,
                                           hintText: '0',
                                         ),
-                                        // ✅ format promo + angka-only
                                         onChanged:
                                             controller.setFormattedPromoFromRaw,
                                       ),
@@ -201,23 +197,8 @@ class PricePage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  controller.savePrice();
-
-                  final price = controller.parseInt(controller.priceText.value);
-                  if (price == null || price < 25000) return;
-
-                  if (!controller.promoActive.value) {
-                    Get.back();
-                    return;
-                  }
-
-                  final promo = controller.parseInt(controller.promoC.text);
-                  final maxPromo = (price * 0.8).floor();
-                  if (promo != null && promo >= 5000 && promo <= maxPromo) {
-                    Get.back();
-                  }
-                },
+                // ✅ View cukup panggil 1 fungsi controller
+                onPressed: controller.trySavePriceAndPop,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey[900],
                   padding: const EdgeInsets.symmetric(vertical: 14),

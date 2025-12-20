@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
 
 class EditBioPage extends StatefulWidget {
   const EditBioPage({super.key});
@@ -10,13 +10,14 @@ class EditBioPage extends StatefulWidget {
 }
 
 class _EditBioPageState extends State<EditBioPage> {
+  final AuthController authC = Get.find<AuthController>();
+
   late TextEditingController _bioC;
   int _length = 0;
 
   @override
   void initState() {
     super.initState();
-    final authC = Get.find<AuthController>();
     final currentBio = authC.user.value?.bio ?? '';
     _bioC = TextEditingController(text: currentBio);
     _length = currentBio.length;
@@ -29,10 +30,9 @@ class _EditBioPageState extends State<EditBioPage> {
   }
 
   Future<void> _save() async {
-    final authC = Get.find<AuthController>();
     final newBio = _bioC.text.trim();
 
-    // boleh kosong, tapi kalau sama persis juga nggak usah update
+    // tidak ada perubahan
     if (newBio == (authC.user.value?.bio ?? '')) {
       Get.back();
       return;
@@ -44,8 +44,6 @@ class _EditBioPageState extends State<EditBioPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authC = Get.find<AuthController>();
-
     return Obx(() {
       final isLoading = authC.isLoading.value;
 

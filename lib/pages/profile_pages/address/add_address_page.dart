@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'package:prelovedly/controller/address_controller.dart';
+import 'package:prelovedly/view_model/address_controller.dart';
 import 'search_address_page.dart';
 
 class AddAddressPage extends StatelessWidget {
@@ -12,9 +12,8 @@ class AddAddressPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AddressController addressC = Get.isRegistered<AddressController>()
-        ? Get.find<AddressController>()
-        : Get.put(AddressController());
+    // ✅ Controller wajib sudah didaftarkan dari GetPage binding
+    final AddressController addressC = Get.find<AddressController>();
 
     return Obx(() {
       final isSaving = addressC.isSaving.value;
@@ -132,12 +131,16 @@ class AddAddressPage extends StatelessWidget {
                   onPressed: isSaving
                       ? null
                       : () async {
-                          final success = await addressC.saveNewAddress(
+                          final res = await addressC.saveNewAddress(
                             receiverName: _nameC.text,
                             phone: _phoneC.text,
                           );
 
-                          if (success) {
+                          // ✅ res = (bool ok, String message)
+                          final ok = res.$1;
+                          final msg = res.$2;
+
+                          if (ok) {
                             _nameC.clear();
                             _phoneC.clear();
                             addressC.selectedRegion.value = '';
@@ -146,13 +149,13 @@ class AddAddressPage extends StatelessWidget {
 
                             Get.snackbar(
                               'Berhasil',
-                              'Alamat tersimpan',
+                              msg,
                               snackPosition: SnackPosition.TOP,
                             );
                           } else {
                             Get.snackbar(
                               'Error',
-                              'Alamat belum tersimpan, cek form / koneksi',
+                              msg,
                               snackPosition: SnackPosition.TOP,
                             );
                           }

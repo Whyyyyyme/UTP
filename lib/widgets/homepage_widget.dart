@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/home_controller.dart';
+import 'package:prelovedly/view_model/home_controller.dart';
 
 class WelcomeCard extends StatelessWidget {
   final String title;

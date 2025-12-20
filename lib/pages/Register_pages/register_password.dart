@@ -1,20 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/register_controller.dart';
-import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/view_model/register_controller.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
 import 'register.dart';
 
 class PasswordRegisterPage extends StatefulWidget {
-  final String email;
-  final String fullName;
-  final String username;
-
-  const PasswordRegisterPage({
-    super.key,
-    required this.email,
-    required this.fullName,
-    required this.username,
-  });
+  const PasswordRegisterPage({super.key});
 
   @override
   State<PasswordRegisterPage> createState() => _PasswordRegisterPageState();
@@ -33,7 +24,6 @@ class _PasswordRegisterPageState extends State<PasswordRegisterPage> {
 
       return RegisterScaffold(
         titleQuestion: 'Buat password',
-        // tombol aktif kalau password valid dan tidak loading
         isValid:
             registerController.isPasswordValid &&
             !authController.isLoading.value,
@@ -41,16 +31,15 @@ class _PasswordRegisterPageState extends State<PasswordRegisterPage> {
           if (!registerController.isPasswordValid) return;
 
           await authController.signUp(
-            email: widget.email,
+            email: registerController.email.value,
             password: pwd,
-            nama: widget.fullName,
-            username: widget.username,
+            nama: registerController.name.value,
+            username: registerController.username.value,
           );
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Input Password
             TextField(
               obscureText: _obscure,
               decoration: InputDecoration(
@@ -70,6 +59,7 @@ class _PasswordRegisterPageState extends State<PasswordRegisterPage> {
               onChanged: registerController.validatePassword,
             ),
             const SizedBox(height: 16),
+
             PasswordRuleItem(
               text: 'Minimal 6 karakter',
               satisfied: pwd.length >= 6,

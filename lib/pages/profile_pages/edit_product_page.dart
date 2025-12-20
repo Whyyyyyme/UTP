@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 import 'package:prelovedly/widgets/sell/Sell_form.dart';
 
 class EditProductPage extends StatelessWidget {

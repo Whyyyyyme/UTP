@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'package:flutter/material.dart';
 import 'package:prelovedly/models/image_model.dart';
@@ -25,7 +24,7 @@ class SellPhotoPreviewCard extends StatelessWidget {
             color: Colors.grey[200],
           ),
           clipBehavior: Clip.antiAlias,
-          child: _buildImage(),
+          child: _buildImage(context),
         ),
         Positioned(
           right: 4,
@@ -46,8 +45,8 @@ class SellPhotoPreviewCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImage() {
-    // 1) URL lama (draft)
+  Widget _buildImage(BuildContext context) {
+    // 1) URL (draft / existing)
     if (image.isUrl) {
       final url = image.url ?? '';
       if (url.isEmpty) {
@@ -58,24 +57,31 @@ class SellPhotoPreviewCard extends StatelessWidget {
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) =>
             const Center(child: Icon(Icons.broken_image)),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        },
       );
     }
 
-    // 2) Local file baru
+    // 2) Local XFile
     final xfile = image.local;
     if (xfile == null) {
       return const Center(child: Icon(Icons.image_not_supported));
     }
 
+    // WEB: render dari bytes (stabil)
     if (kIsWeb) {
-      // ✅ paling stabil di web: render dari bytes
       return FutureBuilder<Uint8List>(
         future: xfile.readAsBytes(),
         builder: (context, snap) {
-          if (!snap.hasData) {
+          if (snap.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             );
+          }
+          if (!snap.hasData || snap.data == null) {
+            return const Center(child: Icon(Icons.broken_image));
           }
           return Image.memory(
             snap.data!,
@@ -87,12 +93,24 @@ class SellPhotoPreviewCard extends StatelessWidget {
       );
     }
 
-    // mobile/desktop
-    return Image.file(
-      File(xfile.path),
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) =>
-          const Center(child: Icon(Icons.broken_image)),
+    // MOBILE/DESKTOP:
+    // Tanpa dart:io kita pakai Image.memory juga, jadi aman & konsisten.
+    return FutureBuilder<Uint8List>(
+      future: xfile.readAsBytes(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+        if (!snap.hasData || snap.data == null) {
+          return const Center(child: Icon(Icons.broken_image));
+        }
+        return Image.memory(
+          snap.data!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              const Center(child: Icon(Icons.broken_image)),
+        );
+      },
     );
   }
 }

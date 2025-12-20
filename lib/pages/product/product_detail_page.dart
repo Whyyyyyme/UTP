@@ -1,65 +1,25 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:prelovedly/controller/like_controller.dart';
-import 'package:prelovedly/controller/cart_controller.dart';
-import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/view_model/like_controller.dart';
+import 'package:prelovedly/view_model/product_detail_controller.dart';
 
-class ProductDetailPage extends StatefulWidget {
-  const ProductDetailPage({super.key});
+import '../../routes/app_routes.dart';
+import '../../view_model/home_controller.dart';
 
-  @override
-  State<ProductDetailPage> createState() => _ProductDetailPageState();
-}
+class ProductDetailPage extends StatelessWidget {
+  ProductDetailPage({super.key});
 
-class _ProductDetailPageState extends State<ProductDetailPage> {
-  final _db = FirebaseFirestore.instance;
-
-  final pageIndex = 0.obs;
-
-  String _rp(dynamic value) {
-    final v = value is int ? value : int.tryParse('$value') ?? 0;
-    final f = NumberFormat.decimalPattern('id_ID').format(v);
-    return 'Rp $f';
-  }
-
-  String _timeAgo(Timestamp? ts) {
-    if (ts == null) return '-';
-    final dt = ts.toDate();
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes} menit yang lalu';
-    if (diff.inHours < 24) return '${diff.inHours} jam yang lalu';
-    return '${diff.inDays} hari yang lalu';
-  }
-
-  late final LikeController likeC;
-
-  @override
-  void initState() {
-    super.initState();
-    likeC = Get.isRegistered<LikeController>()
-        ? Get.find<LikeController>()
-        : Get.put(LikeController(), permanent: true);
-  }
+  final controller = Get.put(ProductDetailController());
 
   @override
   Widget build(BuildContext context) {
-    final args = (Get.arguments is Map) ? (Get.arguments as Map) : {};
-    final String productId = (args['id'] ?? '').toString();
-    final String sellerIdArg = (args['seller_id'] ?? '').toString();
-    final String viewerId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final bool isMe = (args['is_me'] == true);
-
-    if (productId.isEmpty) {
+    if (controller.productId.value.isEmpty) {
       return const Scaffold(body: Center(child: Text('Product id kosong')));
     }
 
-    final productStream = _db.collection('products').doc(productId).snapshots();
-
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: productStream,
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: controller.productStream(),
       builder: (context, snap) {
         if (snap.hasError) {
           return Scaffold(
@@ -72,21 +32,24 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ),
           );
         }
-        if (!snap.hasData) {
+
+        if (snap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        final doc = snap.data!;
-        if (!doc.exists) {
+        final data = snap.data;
+        if (data == null) {
           return const Scaffold(
             body: Center(child: Text('Produk tidak ditemukan')),
           );
         }
 
-        final data = doc.data() ?? {};
-        final String sellerId = (data['seller_id'] ?? sellerIdArg).toString();
+        final String productId = (data['id'] ?? controller.productId.value)
+            .toString();
+        final String sellerId =
+            (data['seller_id'] ?? controller.sellerIdArg.value).toString();
 
         final List<String> images = ((data['image_urls'] as List?) ?? [])
             .map((e) => e.toString())
@@ -102,18 +65,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         final String material = (data['material'] ?? '').toString();
         final String style = (data['style'] ?? '').toString();
         final String categoryName = (data['category_name'] ?? '').toString();
-        final Timestamp? updatedAt = data['updated_at'] is Timestamp
-            ? data['updated_at']
-            : null;
+
+        final dynamic updatedAt =
+            data['updated_at']; // bisa Timestamp/DateTime/String
 
         final int price = (data['price'] is int)
             ? data['price'] as int
             : int.tryParse('${data['price']}') ?? 0;
-
-        final bool canBuy =
-            !isMe; // kalau bukan punya sendiri -> tampil “Nego/Beli”
-        final bool canManage =
-            isMe; // kalau punya sendiri -> tampil “Edit/Manage”
 
         return Scaffold(
           backgroundColor: Colors.white,
@@ -125,37 +83,28 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     SliverToBoxAdapter(
                       child: _TopMedia(
                         images: images,
-                        pageIndex: pageIndex,
+                        pageIndex: controller.pageIndex,
                         onBack: () => Get.back(),
-                        onCart: () {
-                          // TODO: ke cart
-                        },
+                        onCart: () => Get.toNamed(Routes.cart),
                         productId: productId,
                         sellerId: sellerId,
-                        viewerId: viewerId,
-                        likeC: likeC,
+                        viewerId: controller.viewerId,
+                        likeC: controller.likeC,
                       ),
                     ),
-
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // ===== Seller header row (avatar + name + rating + message icon) =====
                             _SellerHeader(
                               sellerId: sellerId,
-                              isMe: isMe,
-                              onMessage: () {
-                                // TODO: chat
-                              },
-                              onSeeProfile: () {
-                                // TODO: buka shop profile seller
-                                // Get.toNamed(Routes.shopProfile, arguments: {"userId": sellerId});
-                              },
+                              isMe: controller.isMe.value,
+                              fetchSeller: controller.getSellerUser,
+                              onMessage: () {},
+                              onSeeProfile: () {},
                             ),
-
                             const SizedBox(height: 14),
 
                             Text(
@@ -185,7 +134,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             const SizedBox(height: 10),
 
                             Text(
-                              _rp(price),
+                              controller.rp(price),
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
@@ -206,7 +155,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             const Divider(height: 1),
                             const SizedBox(height: 12),
 
-                            // ===== Detail section =====
                             const Text(
                               'Detail',
                               style: TextStyle(
@@ -248,14 +196,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             ),
                             _KVRow(
                               label: 'Uploaded',
-                              value: _timeAgo(updatedAt),
+                              value: controller.timeAgo(updatedAt),
                             ),
 
                             const SizedBox(height: 18),
                             const Divider(height: 1),
                             const SizedBox(height: 16),
 
-                            // ===== Lainnya dari seller =====
                             Row(
                               children: [
                                 const Expanded(
@@ -268,9 +215,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                   ),
                                 ),
                                 TextButton(
-                                  onPressed: () {
-                                    // TODO: ke shop seller
-                                  },
+                                  onPressed: () {},
                                   child: const Text('>'),
                                 ),
                               ],
@@ -278,17 +223,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             const SizedBox(height: 10),
 
                             _OtherFromSeller(
-                              sellerId: sellerId,
-                              excludeProductId: productId,
+                              stream: controller.otherFromSellerStream(
+                                sellerId,
+                              ),
                               onTap: (id) {
                                 Get.toNamed(
                                   '/product-detail',
                                   arguments: {
                                     'id': id,
                                     'seller_id': sellerId,
-                                    'viewer_id': viewerId,
-                                    'is_me':
-                                        isMe, // kalau owner, tetap owner mode
+                                    'is_me': controller.isMe.value,
                                   },
                                 );
                               },
@@ -296,7 +240,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
                             const SizedBox(height: 18),
 
-                            // ===== Kamu mungkin suka =====
                             const Text(
                               'Kamu mungkin suka',
                               style: TextStyle(
@@ -307,24 +250,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             const SizedBox(height: 10),
 
                             _YouMayLike(
-                              excludeProductId: productId,
+                              stream: controller.youMayLikeStream(),
                               onTap: (id, sid) {
                                 Get.toNamed(
                                   '/product-detail',
                                   arguments: {
                                     'id': id,
                                     'seller_id': sid,
-                                    'viewer_id': viewerId,
-                                    'is_me':
-                                        false, // rekomendasi biasanya bukan punya sendiri
+                                    'is_me': false,
                                   },
                                 );
                               },
                             ),
 
-                            const SizedBox(
-                              height: 110,
-                            ), // ruang buat bottom bar
+                            const SizedBox(height: 110),
                           ],
                         ),
                       ),
@@ -332,65 +271,30 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ],
                 ),
 
-                // ===== Bottom bar =====
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: 0,
                   child: _BottomBar(
-                    canBuy: canBuy,
-                    canManage: canManage,
-                    onNego: () {
-                      Get.snackbar('Nego', 'Fitur nego belum dihubungkan');
-                    },
+                    canBuy: controller.canBuy,
+                    canManage: controller.canManage,
+                    onNego: () =>
+                        Get.snackbar('Nego', 'Fitur nego belum dihubungkan'),
                     onBuy: () async {
-                      final viewerId =
-                          FirebaseAuth.instance.currentUser?.uid ?? '';
-
-                      if (viewerId.isEmpty) {
-                        Get.snackbar(
-                          'Login dulu',
-                          'Sesi kamu habis, silakan login ulang',
-                        );
-                        return;
-                      }
-
-                      // ✅ cegah beli barang sendiri (seller_id harus uid auth)
-                      if (sellerId == viewerId) {
-                        Get.snackbar(
-                          'Info',
-                          'Tidak bisa membeli produk sendiri',
-                        );
-                        return;
-                      }
-
-                      final cartC = Get.isRegistered<CartController>()
-                          ? Get.find<CartController>()
-                          : Get.put(CartController(), permanent: true);
-
-                      try {
-                        await cartC.addToCart(
-                          viewerId: viewerId,
-                          productId: productId,
-                        );
-
-                        Get.toNamed(Routes.cart);
-                      } catch (e) {
-                        Get.snackbar('Gagal', e.toString());
-                      }
-                    },
-
-                    onEdit: () {
-                      // TODO: route edit
-                      Get.snackbar('Edit', 'Arahkan ke edit produk');
-                    },
-                    onManage: () {
-                      // ✅ kalau punya sendiri: ke manage product
-                      Get.toNamed(
-                        '/manage-product',
-                        arguments: {'id': productId, 'seller_id': sellerId},
+                      await controller.buy(
+                        sellerId: sellerId,
+                        productId: productId,
                       );
+                      Get.toNamed(Routes.cart);
                     },
+                    onEdit: () => Get.toNamed(
+                      Routes.editProduct,
+                      arguments: {'id': productId, 'seller_id': sellerId},
+                    ),
+                    onManage: () => Get.toNamed(
+                      Routes.manageProduct,
+                      arguments: {'id': productId, 'seller_id': sellerId},
+                    ),
                   ),
                 ),
               ],
@@ -460,17 +364,21 @@ class _TopMedia extends StatelessWidget {
             top: 10,
             child: _CircleBtn(icon: Icons.arrow_back, onTap: onBack),
           ),
+
           Positioned(
             right: 10,
             top: 10,
-            child: _CircleBtn(
-              icon: Icons.shopping_bag_outlined,
-              onTap: onCart,
-              badge: 0, // TODO: sambungkan cart count
-            ),
+            child: Obx(() {
+              final homeC = Get.find<HomeController>(); // pastikan sudah ada
+              return _CircleBtn(
+                icon: Icons.shopping_bag_outlined,
+                onTap: onCart,
+                badge: homeC.cartCount.value,
+              );
+            }),
           ),
 
-          // ✅ LIKE BUTTON (sesuai LikeController kamu)
+          // ✅ LIKE BUTTON
           Positioned(
             right: 12,
             bottom: 25,
@@ -507,6 +415,7 @@ class _TopMedia extends StatelessWidget {
             ),
           ),
 
+          // indikator page
           Positioned(
             left: 0,
             right: 0,
@@ -589,37 +498,32 @@ class _CircleBtn extends StatelessWidget {
 }
 
 /// ===================== SELLER HEADER =====================
+/// NOTE: Tidak query Firestore di sini.
+/// Data seller diambil via `fetchSeller(sellerId)` dari VM/Repo.
 class _SellerHeader extends StatelessWidget {
   final String sellerId;
   final bool isMe;
   final VoidCallback onMessage;
   final VoidCallback onSeeProfile;
+  final Future<Map<String, dynamic>> Function(String sellerId) fetchSeller;
 
   const _SellerHeader({
     required this.sellerId,
     required this.isMe,
     required this.onMessage,
     required this.onSeeProfile,
+    required this.fetchSeller,
   });
 
   @override
   Widget build(BuildContext context) {
-    final db = FirebaseFirestore.instance;
-
-    return FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      future: db
-          .collection('users')
-          .where('uid', isEqualTo: sellerId)
-          .limit(1)
-          .get(),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: fetchSeller(sellerId),
       builder: (context, snap) {
-        final user = (snap.data?.docs.isNotEmpty ?? false)
-            ? snap.data!.docs.first.data()
-            : {};
+        final user = snap.data ?? {};
         final username = (user['username'] ?? 'seller').toString();
         final foto = (user['foto_profil_url'] ?? '').toString();
 
-        // rating dummy (kalau belum ada field rating)
         final double rating = (user['rating'] is num)
             ? (user['rating'] as num).toDouble()
             : 5.0;
@@ -721,37 +625,22 @@ class _KVRow extends StatelessWidget {
 }
 
 /// ===================== OTHER FROM SELLER =====================
+/// NOTE: stream dikirim dari VM -> repo -> service.
+/// widget tidak boleh bikin query Firestore sendiri.
 class _OtherFromSeller extends StatelessWidget {
-  final String sellerId;
-  final String excludeProductId;
+  final Stream<List<Map<String, dynamic>>> stream;
   final void Function(String id) onTap;
 
-  const _OtherFromSeller({
-    required this.sellerId,
-    required this.excludeProductId,
-    required this.onTap,
-  });
+  const _OtherFromSeller({required this.stream, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final db = FirebaseFirestore.instance;
-
-    // ✅ pakai index kamu: status + seller_id + updated_at
-    final stream = db
-        .collection('products')
-        .where('status', isEqualTo: 'published')
-        .where('seller_id', isEqualTo: sellerId)
-        .orderBy('updated_at', descending: true)
-        .limit(10)
-        .snapshots();
-
     return SizedBox(
       height: 130,
-      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: stream,
         builder: (context, snap) {
-          final docs = snap.data?.docs ?? [];
-          final filtered = docs.where((d) => d.id != excludeProductId).toList();
+          final items = snap.data ?? [];
 
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -762,7 +651,7 @@ class _OtherFromSeller extends StatelessWidget {
               style: const TextStyle(color: Colors.red),
             );
           }
-          if (filtered.isEmpty) {
+          if (items.isEmpty) {
             return Text(
               'Belum ada produk lain',
               style: TextStyle(color: Colors.grey.shade600),
@@ -771,11 +660,11 @@ class _OtherFromSeller extends StatelessWidget {
 
           return ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: filtered.length.clamp(0, 8),
+            itemCount: items.length.clamp(0, 8),
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
-              final d = filtered[i].data();
-              final id = filtered[i].id;
+              final d = items[i];
+              final id = (d['id'] ?? '').toString();
 
               final urls = ((d['image_urls'] as List?) ?? [])
                   .map((e) => e.toString())
@@ -828,31 +717,22 @@ class _OtherFromSeller extends StatelessWidget {
 }
 
 /// ===================== YOU MAY LIKE =====================
+/// NOTE: stream dikirim dari VM -> repo -> service.
+/// widget tidak query Firestore langsung.
 class _YouMayLike extends StatelessWidget {
-  final String excludeProductId;
+  final Stream<List<Map<String, dynamic>>> stream;
   final void Function(String id, String sellerId) onTap;
 
-  const _YouMayLike({required this.excludeProductId, required this.onTap});
+  const _YouMayLike({required this.stream, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final db = FirebaseFirestore.instance;
-
-    // ✅ pakai index kamu: status + updated_at
-    final stream = db
-        .collection('products')
-        .where('status', isEqualTo: 'published')
-        .orderBy('updated_at', descending: true)
-        .limit(20)
-        .snapshots();
-
     return SizedBox(
       height: 150,
-      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: stream,
         builder: (context, snap) {
-          final docs = snap.data?.docs ?? [];
-          final filtered = docs.where((d) => d.id != excludeProductId).toList();
+          final items = snap.data ?? [];
 
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -863,7 +743,7 @@ class _YouMayLike extends StatelessWidget {
               style: const TextStyle(color: Colors.red),
             );
           }
-          if (filtered.isEmpty) {
+          if (items.isEmpty) {
             return Text(
               'Belum ada rekomendasi',
               style: TextStyle(color: Colors.grey.shade600),
@@ -872,11 +752,11 @@ class _YouMayLike extends StatelessWidget {
 
           return ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: filtered.length.clamp(0, 10),
+            itemCount: items.length.clamp(0, 10),
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
-              final d = filtered[i].data();
-              final id = filtered[i].id;
+              final d = items[i];
+              final id = (d['id'] ?? '').toString();
               final sid = (d['seller_id'] ?? '').toString();
 
               final urls = ((d['image_urls'] as List?) ?? [])

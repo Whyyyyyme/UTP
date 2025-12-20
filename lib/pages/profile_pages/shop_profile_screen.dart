@@ -1,31 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:prelovedly/controller/auth_controller.dart';
-import 'package:prelovedly/controller/like_controller.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
-import 'package:prelovedly/pages/profile_pages/followers_page.dart';
-import 'package:prelovedly/routes/app_routes.dart';
-import 'package:prelovedly/widgets/profile/likes_tab.dart';
-import 'package:prelovedly/controller/follow_controller.dart';
+import 'package:prelovedly/models/product_model.dart';
+
+import '../../routes/app_routes.dart';
+import '../../view_model/shop_profile_controller.dart';
+
+import '../../widgets/profile/likes_tab.dart';
+import '../profile_pages/followers_page.dart';
 
 class ShopProfileScreen extends StatelessWidget {
-  final int initialTabIndex;
+  ShopProfileScreen({super.key});
 
-  ShopProfileScreen({super.key, this.initialTabIndex = 0});
+  final c = Get.find<ShopProfileController>();
 
-  final RxBool showFullBio = false.obs;
-
-  Widget _buildBioSection(String bioRaw) {
-    final String bio = bioRaw.trim().isEmpty ? 'Tidak ada bio' : bioRaw.trim();
-
-    const int maxPreviewChars = 30;
-    final bool isLong = bio.length > maxPreviewChars;
+  Widget _bioSection(String bioRaw) {
+    final bio = bioRaw.trim().isEmpty ? 'Tidak ada bio' : bioRaw.trim();
+    const maxPreviewChars = 30;
+    final isLong = bio.length > maxPreviewChars;
 
     return Obx(() {
-      final bool expanded = showFullBio.value;
-
-      final String displayText = (isLong && !expanded)
+      final expanded = c.showFullBio.value;
+      final displayText = (isLong && !expanded)
           ? '${bio.substring(0, maxPreviewChars)}...'
           : bio;
 
@@ -38,7 +33,7 @@ class ShopProfileScreen extends StatelessWidget {
           ),
           if (isLong)
             TextButton(
-              onPressed: () => showFullBio.value = !showFullBio.value,
+              onPressed: () => c.showFullBio.value = !c.showFullBio.value,
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
@@ -58,533 +53,378 @@ class ShopProfileScreen extends StatelessWidget {
     });
   }
 
-  /// ✅ Tab Shop (mode sendiri vs orang lain)
-  Widget _buildShopTab({
-    required String viewerId, // user login
-    required String userId, // target profile
-    required bool isMe,
-    required String nama,
-    required String bio,
-    required String fotoProfilUrl,
-    required FollowController followC,
-  }) {
-    final String initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
-
-    // ✅ Query produk:
-    // - kalau diri sendiri: tampilkan semua (published + draft), urut created_at
-    // - kalau orang lain: hanya published, urut updated_at (biar pakai index kamu)
-    final Stream<QuerySnapshot<Map<String, dynamic>>> productStream = isMe
-        ? FirebaseFirestore.instance
-              .collection('products')
-              .where('seller_id', isEqualTo: userId)
-              .orderBy('created_at', descending: true)
-              .snapshots()
-        : FirebaseFirestore.instance
-              .collection('products')
-              .where('seller_id', isEqualTo: userId)
-              .where('status', isEqualTo: 'published')
-              .orderBy('updated_at', descending: true)
-              .snapshots();
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: productStream,
-      builder: (context, snapshot) {
-        final bool isLoading =
-            snapshot.connectionState == ConnectionState.waiting;
-
-        if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Gagal memuat produk: ${snapshot.error}',
-              style: const TextStyle(color: Colors.red),
-            ),
-          );
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        final products = docs
-            .map((d) => ShopProduct.fromDoc(d))
-            .toList(growable: false);
-
-        final published = products
-            .where((p) => !p.isDraft)
-            .toList(growable: false);
-        final drafts = isMe
-            ? products.where((p) => p.isDraft).toList(growable: false)
-            : <ShopProduct>[];
-
-        final allProducts = isMe ? [...published, ...drafts] : published;
-
-        final int productCount = published.length;
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ============== HEADER PROFIL + STAT ==============
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.orange,
-                    backgroundImage: fotoProfilUrl.isNotEmpty
-                        ? NetworkImage(fotoProfilUrl)
-                        : null,
-                    child: fotoProfilUrl.isNotEmpty
-                        ? null
-                        : Text(
-                            initial,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          nama,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            StatItemWidget(
-                              number: productCount.toString(),
-                              label: 'produk',
-                            ),
-                            InkWell(
-                              onTap: () {
-                                Get.to(
-                                  () => FollowersFollowingPage(
-                                    userId: userId,
-                                    initialIndex: 0,
-                                  ),
-                                );
-                              },
-                              child: StreamBuilder<int>(
-                                stream: followC.followersCountStream(userId),
-                                builder: (_, s) => StatItemWidget(
-                                  number: '${s.data ?? 0}',
-                                  label: 'followers',
-                                ),
-                              ),
-                            ),
-
-                            InkWell(
-                              onTap: () {
-                                Get.to(
-                                  () => FollowersFollowingPage(
-                                    userId: userId,
-                                    initialIndex: 1,
-                                  ),
-                                );
-                              },
-                              child: StreamBuilder<int>(
-                                stream: followC.followingCountStream(userId),
-                                builder: (_, s) => StatItemWidget(
-                                  number: '${s.data ?? 0}',
-                                  label: 'following',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // rating dummy
-              Row(
-                children: List.generate(
-                  5,
-                  (index) => Icon(Icons.star_border, color: Colors.grey[400]),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              _buildBioSection(bio),
-
-              const SizedBox(height: 24),
-
-              // ============== BUTTONS (beda mode) ==============
-              Row(
-                children: [
-                  Expanded(
-                    child: isMe
-                        ? ElevatedButton(
-                            onPressed: () => Get.toNamed(Routes.editProfile),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey[200],
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text('Edit profil'),
-                          )
-                        : StreamBuilder<bool>(
-                            stream: Get.find<FollowController>()
-                                .isFollowingStream(
-                                  viewerId: viewerId,
-                                  targetUserId: userId,
-                                ),
-                            builder: (context, snap) {
-                              final following = snap.data == true;
-
-                              return ElevatedButton(
-                                onPressed: () async {
-                                  try {
-                                    await Get.find<FollowController>()
-                                        .toggleFollow(
-                                          viewerId: viewerId,
-                                          targetUserId: userId,
-                                          currentlyFollowing: following,
-                                        );
-                                  } catch (e) {
-                                    Get.snackbar('Gagal', e.toString());
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: following
-                                      ? Colors.grey[200]
-                                      : Colors.blue,
-                                  foregroundColor: following
-                                      ? Colors.black
-                                      : Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Text(following ? 'Following' : 'Follow'),
-                              );
-                            },
-                          ),
-                  ),
-
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (isMe) {
-                          Get.toNamed(Routes.sellProduct);
-                        } else {
-                          // TODO: message/chat
-                          Get.snackbar(
-                            'Message',
-                            'Fitur message belum dihubungkan',
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[200],
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(isMe ? 'Upload produk' : 'Message'),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // ============== GRID PRODUK / EMPTY STATE ==============
-              if (isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (allProducts.isEmpty)
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/eyes.png', width: 100, height: 100),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Belum ada item',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: allProducts.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1,
-                  ),
-                  itemBuilder: (context, index) {
-                    final product = allProducts[index];
-
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () async {
-                        // ✅ draft hanya boleh dibuka kalau diri sendiri
-                        if (product.isDraft) {
-                          if (!isMe) return;
-
-                          final sell = Get.isRegistered<SellController>()
-                              ? Get.find<SellController>()
-                              : Get.put(SellController());
-
-                          await sell.loadDraft(product.id);
-                          Get.toNamed(
-                            Routes.editDraft,
-                            arguments: {"id": product.id},
-                          );
-                          return;
-                        }
-
-                        // ✅ published:
-                        if (isMe) {
-                          // profil sendiri -> manage product
-                          Get.toNamed(
-                            '${Routes.manageProduct}?id=${product.id}&seller_id=$userId',
-                          );
-                        } else {
-                          // profil orang lain -> detail product
-                          Get.toNamed(
-                            Routes.productDetail,
-                            arguments: {"id": product.id, "seller_id": userId},
-                          );
-                        }
-                      },
-
-                      child: _ProductCard(product: product),
-                    );
-                  },
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showMenuBottomSheet(BuildContext context, {required bool isMe}) {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('About'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.share_outlined),
-                title: const Text('Share'),
-                onTap: () => Navigator.pop(context),
-              ),
-              if (isMe)
-                ListTile(
-                  leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Edit profil'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Get.toNamed(Routes.editProfile);
-                  },
-                ),
-              ListTile(
-                leading: const Icon(Icons.cancel_outlined),
-                title: const Text('Cancel'),
-                onTap: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final authC = Get.find<AuthController>();
-    final args = Get.arguments;
+    final me = c.authC.user.value;
+    if (me == null) {
+      return const Scaffold(body: Center(child: Text('Kamu belum login')));
+    }
 
-    final followC = Get.isRegistered<FollowController>()
-        ? Get.find<FollowController>()
-        : Get.put(FollowController(), permanent: true);
-
-    final int initialIndexFromArgs =
-        (args is Map && args['initialTabIndex'] is int)
-        ? args['initialTabIndex'] as int
-        : initialTabIndex;
-
-    final int initialIndex =
-        (initialIndexFromArgs < 0 || initialIndexFromArgs > 2)
-        ? 0
-        : initialIndexFromArgs;
-
-    return Obx(() {
-      final me = authC.user.value;
-      if (me == null) {
-        return const Scaffold(body: Center(child: Text('Kamu belum login')));
-      }
-
-      // ✅ viewerId = user login
-      final String viewerId = me.id;
-
-      // ✅ target profile id (kalau ada arg seller_id / userId -> buka seller itu)
-      final String targetUserId =
-          (args is Map && (args['seller_id'] != null || args['userId'] != null))
-          ? ((args['seller_id'] ?? args['userId']).toString())
-          : me.id;
-
-      final bool isMe = targetUserId == me.id;
-
-      return DefaultTabController(
-        length: 3,
-        initialIndex: initialIndex,
-        child: Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                if (Get.key.currentState?.canPop() ?? false) {
-                  Get.back();
-                } else {
-                  Get.offNamed(Routes.profile);
-                }
-              },
-            ),
-            title: Text(
-              isMe ? (me.username.isNotEmpty ? me.username : me.nama) : 'Shop',
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () => _showMenuBottomSheet(context, isMe: isMe),
-              ),
-            ],
-            centerTitle: true,
-            bottom: const TabBar(
-              labelStyle: TextStyle(fontWeight: FontWeight.bold),
-              tabs: [
-                Tab(text: 'Shop'),
-                Tab(text: 'Likes'),
-                Tab(text: 'Reviews'),
-              ],
-            ),
+    return DefaultTabController(
+      length: 3,
+      initialIndex: c.initialTabIndex.value,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (Get.key.currentState?.canPop() ?? false) {
+                Get.back();
+              } else {
+                Get.offNamed(Routes.profile);
+              }
+            },
           ),
-
-          body: isMe
-              ? TabBarView(
-                  children: [
-                    _buildShopTab(
-                      viewerId: viewerId,
-                      userId: viewerId,
-                      isMe: true,
-                      nama: me.nama,
-                      bio: me.bio,
-                      fotoProfilUrl: me.fotoProfilUrl,
-                      followC: followC,
+          title: Obx(() {
+            final isMe = c.isMe;
+            return Text(
+              isMe ? (me.username.isNotEmpty ? me.username : me.nama) : 'Shop',
+            );
+          }),
+          actions: [
+            IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+          ],
+          centerTitle: true,
+          bottom: const TabBar(
+            labelStyle: TextStyle(fontWeight: FontWeight.bold),
+            tabs: [
+              Tab(text: 'Shop'),
+              Tab(text: 'Likes'),
+              Tab(text: 'Reviews'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // ================= SHOP TAB =================
+            StreamBuilder<Map<String, dynamic>?>(
+              stream: c.targetUserStream(),
+              builder: (context, userSnap) {
+                if (userSnap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (userSnap.hasError) {
+                  return Center(
+                    child: Text(
+                      'Gagal memuat user: ${userSnap.error}',
+                      style: const TextStyle(color: Colors.red),
                     ),
+                  );
+                }
 
-                    // ✅ FIX: pakai viewerId yang sudah didefinisikan
-                    LikesTab(
-                      viewerId: viewerId,
-                      likeC: Get.find<LikeController>(),
-                    ),
+                final u = userSnap.data ?? <String, dynamic>{};
 
-                    const EmptyReviewsTab(),
-                  ],
-                )
-              : FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  future: FirebaseFirestore.instance
-                      .collection('users')
-                      .where('uid', isEqualTo: targetUserId)
-                      .limit(1)
-                      .get(),
+                // kalau profil sendiri: pakai data auth (lebih akurat dan cepat)
+                final nama = c.isMe
+                    ? me.nama
+                    : (u['nama'] ?? u['username'] ?? 'Seller').toString();
+                final bio = c.isMe ? me.bio : (u['bio'] ?? '').toString();
+                final foto = c.isMe
+                    ? me.fotoProfilUrl
+                    : (u['foto_profil_url'] ?? '').toString();
+
+                return StreamBuilder<List<ProductModel>>(
+                  stream: c.productsStream(),
                   builder: (context, snap) {
-                    if (snap.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                    final loading =
+                        snap.connectionState == ConnectionState.waiting;
+
                     if (snap.hasError) {
-                      return Center(
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
                         child: Text(
-                          'Gagal memuat user: ${snap.error}',
+                          'Gagal memuat produk: ${snap.error}',
                           style: const TextStyle(color: Colors.red),
                         ),
                       );
                     }
 
-                    final data = (snap.data?.docs.isNotEmpty == true)
-                        ? snap.data!.docs.first.data()
-                        : <String, dynamic>{};
+                    final products = snap.data ?? const [];
 
-                    final nama = (data['nama'] ?? data['username'] ?? 'Seller')
-                        .toString();
-                    final bio = (data['bio'] ?? '').toString();
-                    final foto = (data['foto_profil_url'] ?? '').toString();
+                    final published = products
+                        .where((p) => !p.isDraft)
+                        .toList(growable: false);
+                    final drafts = c.isMe
+                        ? products
+                              .where((p) => p.isDraft)
+                              .toList(growable: false)
+                        : <ProductModel>[];
 
-                    return TabBarView(
-                      children: [
-                        _buildShopTab(
-                          viewerId: viewerId,
-                          userId: targetUserId,
-                          isMe: false,
-                          nama: nama,
-                          bio: bio,
-                          fotoProfilUrl: foto,
-                          followC: followC,
-                        ),
+                    final all = c.isMe ? [...published, ...drafts] : published;
 
-                        LikesTab(
-                          viewerId: viewerId,
-                          likeC: Get.find<LikeController>(),
-                        ),
+                    final productCount = published.length;
+                    final initial = nama.isNotEmpty
+                        ? nama[0].toUpperCase()
+                        : '?';
 
-                        const EmptyReviewsTab(),
-                      ],
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ===== header + stats =====
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 40,
+                                backgroundColor: Colors.orange,
+                                backgroundImage: foto.isNotEmpty
+                                    ? NetworkImage(foto)
+                                    : null,
+                                child: foto.isNotEmpty
+                                    ? null
+                                    : Text(
+                                        initial,
+                                        style: const TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nama,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        _StatItem(
+                                          number: '$productCount',
+                                          label: 'produk',
+                                        ),
+
+                                        InkWell(
+                                          onTap: () {
+                                            // kalau kamu masih pakai widget page langsung:
+                                            Get.to(
+                                              () => FollowersFollowingPage(
+                                                userId: c.targetUserId.value,
+                                                initialIndex: 0,
+                                              ),
+                                            );
+                                          },
+                                          child: StreamBuilder<int>(
+                                            stream: c.followersCountStream(),
+                                            builder: (_, s) => _StatItem(
+                                              number: '${s.data ?? 0}',
+                                              label: 'followers',
+                                            ),
+                                          ),
+                                        ),
+
+                                        InkWell(
+                                          onTap: () {
+                                            Get.to(
+                                              () => FollowersFollowingPage(
+                                                userId: c.targetUserId.value,
+                                                initialIndex: 1,
+                                              ),
+                                            );
+                                          },
+                                          child: StreamBuilder<int>(
+                                            stream: c.followingCountStream(),
+                                            builder: (_, s) => _StatItem(
+                                              number: '${s.data ?? 0}',
+                                              label: 'following',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // rating dummy
+                          Row(
+                            children: List.generate(
+                              5,
+                              (index) => Icon(
+                                Icons.star_border,
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+                          _bioSection(bio),
+
+                          const SizedBox(height: 24),
+
+                          // ===== buttons =====
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Obx(() {
+                                  if (c.isMe) {
+                                    return ElevatedButton(
+                                      onPressed: () =>
+                                          Get.toNamed(Routes.editProfile),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey[200],
+                                        foregroundColor: Colors.black,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text('Edit profil'),
+                                    );
+                                  }
+
+                                  return StreamBuilder<bool>(
+                                    stream: c.isFollowingStream(),
+                                    builder: (_, fs) {
+                                      final following = fs.data == true;
+                                      return ElevatedButton(
+                                        onPressed: () => c.toggleFollow(
+                                          currentlyFollowing: following,
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: following
+                                              ? Colors.grey[200]
+                                              : Colors.blue,
+                                          foregroundColor: following
+                                              ? Colors.black
+                                              : Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          following ? 'Following' : 'Follow',
+                                        ),
+                                      );
+                                    },
+                                  );
+                                }),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Obx(() {
+                                  return ElevatedButton(
+                                    onPressed: () {
+                                      if (c.isMe) {
+                                        Get.toNamed(Routes.sellProduct);
+                                      } else {
+                                        Get.snackbar(
+                                          'Message',
+                                          'Fitur message belum dihubungkan',
+                                        );
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.grey[200],
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      c.isMe ? 'Upload produk' : 'Message',
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // ===== grid =====
+                          if (loading)
+                            const Center(child: CircularProgressIndicator())
+                          else if (all.isEmpty)
+                            Center(
+                              child: Column(
+                                children: [
+                                  Image.asset(
+                                    'assets/eyes.png',
+                                    width: 100,
+                                    height: 100,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Belum ada item',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: all.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    mainAxisSpacing: 8,
+                                    crossAxisSpacing: 8,
+                                    childAspectRatio: 1,
+                                  ),
+                              itemBuilder: (_, i) {
+                                final p = all[i];
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () => c.onTapProduct(p),
+                                  child: _ProductCard(p: p),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
                     );
                   },
-                ),
+                );
+              },
+            ),
+
+            // ================= LIKES TAB =================
+            LikesTab(viewerId: c.viewerId, likeC: c.likeC),
+
+            // ================= REVIEWS TAB =================
+            const _EmptyReviewsTab(),
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 }
 
-class EmptyReviewsTab extends StatelessWidget {
-  const EmptyReviewsTab({super.key});
+class _EmptyReviewsTab extends StatelessWidget {
+  const _EmptyReviewsTab();
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+        children: const [
           Icon(Icons.star_border, size: 80, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text(
+          SizedBox(height: 16),
+          Text(
             'Belum ada ulasan',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
@@ -594,11 +434,11 @@ class EmptyReviewsTab extends StatelessWidget {
   }
 }
 
-class StatItemWidget extends StatelessWidget {
+class _StatItem extends StatelessWidget {
   final String number;
   final String label;
 
-  const StatItemWidget({super.key, required this.number, required this.label});
+  const _StatItem({required this.number, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -614,71 +454,26 @@ class StatItemWidget extends StatelessWidget {
   }
 }
 
-class ShopProduct {
-  final String id;
-  final String title;
-  final String imageUrl;
-  final int price;
-  final String status;
-
-  ShopProduct({
-    required this.id,
-    required this.title,
-    required this.imageUrl,
-    required this.price,
-    required this.status,
-  });
-
-  bool get isDraft => status == 'draft';
-
-  factory ShopProduct.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
-
-    final List raw = (data['image_urls'] as List?) ?? [];
-    final List<String> imageUrls = raw.map((e) => e.toString()).toList();
-
-    final String firstImage =
-        (data['thumbnail_url'] as String?) ??
-        (data['image_url'] as String?) ??
-        (imageUrls.isNotEmpty ? imageUrls.first : '');
-
-    final dynamic priceRaw = data['price'];
-    final int price = priceRaw is int
-        ? priceRaw
-        : int.tryParse(priceRaw?.toString() ?? '0') ?? 0;
-
-    return ShopProduct(
-      id: doc.id,
-      title: (data['title'] ?? '').toString(),
-      imageUrl: firstImage,
-      price: price,
-      status: (data['status'] ?? 'draft').toString(),
-    );
-  }
-}
-
 class _ProductCard extends StatelessWidget {
-  final ShopProduct product;
-
-  const _ProductCard({required this.product});
+  final ProductModel p;
+  const _ProductCard({required this.p});
 
   @override
   Widget build(BuildContext context) {
+    final img = p.imageUrls.isNotEmpty ? p.imageUrls.first : '';
+
     return Stack(
       children: [
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: Colors.grey[200],
-            image: product.imageUrl.isNotEmpty
-                ? DecorationImage(
-                    image: NetworkImage(product.imageUrl),
-                    fit: BoxFit.cover,
-                  )
+            image: img.isNotEmpty
+                ? DecorationImage(image: NetworkImage(img), fit: BoxFit.cover)
                 : null,
           ),
         ),
-        if (product.isDraft)
+        if (p.isDraft)
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(

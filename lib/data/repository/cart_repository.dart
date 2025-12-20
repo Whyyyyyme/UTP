@@ -1,28 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:get/get.dart';
+import '../services/cart_service.dart';
 
-class CartController extends GetxController {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+class CartRepository {
+  CartRepository(this._service);
 
-  CollectionReference<Map<String, dynamic>> _itemsRef(String viewerId) =>
-      _db.collection('carts').doc(viewerId).collection('items');
+  final CartService _service;
 
-  // ✅ stream isi keranjang (buat CartPage)
-  Stream<QuerySnapshot<Map<String, dynamic>>> cartItemsStream(String viewerId) {
-    return _itemsRef(
-      viewerId,
-    ).orderBy('created_at', descending: true).snapshots();
-  }
+  Stream<QuerySnapshot<Map<String, dynamic>>> cartItemsStream(
+    String viewerId,
+  ) => _service.cartItemsStream(viewerId);
 
-  // ✅ cek apakah produk sudah ada di cart
   Stream<bool> isInCartStream({
     required String viewerId,
     required String productId,
-  }) {
-    return _itemsRef(viewerId).doc(productId).snapshots().map((d) => d.exists);
-  }
+  }) => _service.isInCartStream(viewerId: viewerId, productId: productId);
 
-  // ✅ add to cart (preloved: 1 item = 1 doc, id = productId)
   Future<void> addToCart({
     required String viewerId,
     required String productId,
@@ -30,12 +22,11 @@ class CartController extends GetxController {
     if (viewerId.isEmpty) throw Exception('viewerId kosong');
     if (productId.isEmpty) throw Exception('productId kosong');
 
-    final prodSnap = await _db.collection('products').doc(productId).get();
+    final prodSnap = await _service.productDoc(productId);
     if (!prodSnap.exists) throw Exception('Produk tidak ditemukan');
 
     final productData = prodSnap.data() ?? {};
     final status = (productData['status'] ?? '').toString();
-
     if (status.isNotEmpty && status != 'published') {
       throw Exception('Produk belum tersedia');
     }
@@ -55,30 +46,43 @@ class CartController extends GetxController {
         ? (productData['image_urls'] as List).map((e) => '$e').toList()
         : <String>[];
 
-    await _itemsRef(viewerId).doc(productId).set({
-      'product_id': productId,
-      'seller_id': sellerId,
-      'price': price,
-      'title': title,
-      'brand': brand,
-      'size': size,
-      'thumbnail_url': thumb,
-      'image_urls': imageUrls,
-      'created_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    final sellerSnap = await _service.userDoc(sellerId);
+    final sellerData = sellerSnap.data() ?? {};
+    final sellerName =
+        (sellerData['name'] ??
+                sellerData['username'] ??
+                sellerData['displayName'] ??
+                '')
+            .toString();
+
+    await _service.setCartItem(
+      viewerId: viewerId,
+      productId: productId,
+      data: {
+        'product_id': productId,
+        'seller_id': sellerId,
+        'seller_name': sellerName.isEmpty ? sellerId : sellerName,
+        'price': price,
+        'title': title,
+        'brand': brand,
+        'size': size,
+        'thumbnail_url': thumb,
+        'image_urls': imageUrls,
+        'created_at': FieldValue.serverTimestamp(),
+      },
+    );
   }
 
-  // ✅ remove 1 item
   Future<void> removeFromCart({
     required String viewerId,
     required String productId,
   }) async {
     if (viewerId.isEmpty) throw Exception('viewerId kosong');
     if (productId.isEmpty) throw Exception('productId kosong');
-    await _itemsRef(viewerId).doc(productId).delete();
+
+    await _service.deleteCartItem(viewerId: viewerId, productId: productId);
   }
 
-  // ✅ toggle (opsional, enak buat tombol)
   Future<void> toggleCart({
     required String viewerId,
     required String productId,
@@ -91,15 +95,26 @@ class CartController extends GetxController {
     }
   }
 
-  // ✅ clear cart
-  Future<void> clearCart(String viewerId) async {
+  Future<void> clearCart(String viewerId) {
     if (viewerId.isEmpty) throw Exception('viewerId kosong');
+    return _service.clearCart(viewerId);
+  }
 
-    final snap = await _itemsRef(viewerId).get();
-    final batch = _db.batch();
-    for (final d in snap.docs) {
-      batch.delete(d.reference);
-    }
-    await batch.commit();
+  /// ✅ Hapus semua item dalam cart untuk seller tertentu
+  Future<void> deleteAllBySeller({
+    required String viewerId,
+    required String sellerId,
+  }) async {
+    if (viewerId.isEmpty) throw Exception('viewerId kosong');
+    if (sellerId.isEmpty) return;
+
+    final docs = await _service.getItemsBySeller(
+      viewerId: viewerId,
+      sellerId: sellerId,
+    );
+
+    if (docs.isEmpty) return;
+
+    await _service.batchDeleteDocs(docs);
   }
 }

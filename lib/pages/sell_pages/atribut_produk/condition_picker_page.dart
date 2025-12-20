@@ -1,20 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/product/condition_picker_controller.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/product/condition_picker_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 
-class ConditionPickerPage extends StatelessWidget {
+class ConditionPickerPage extends StatefulWidget {
   const ConditionPickerPage({super.key});
 
   @override
+  State<ConditionPickerPage> createState() => _ConditionPickerPageState();
+}
+
+class _ConditionPickerPageState extends State<ConditionPickerPage> {
+  late final ConditionPickerController c;
+  late final SellController sell;
+
+  @override
+  void initState() {
+    super.initState();
+    c = Get.find<ConditionPickerController>();
+    sell = Get.find<SellController>();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      c.preload(sell.condition.value); // ✅ preload sekali
+    });
+  }
+
+  void _commitAndClose() {
+    if (!c.canSave) {
+      Get.snackbar('Kondisi kosong', 'Pilih salah satu kondisi dulu');
+      return;
+    }
+    sell.setCondition(c.selected.value); // ✅ commit via SellController
+    Get.back();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final ConditionPickerController c =
-        Get.isRegistered<ConditionPickerController>()
-        ? Get.find()
-        : Get.put(ConditionPickerController());
-
-    final SellController sell = Get.find<SellController>();
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -28,13 +49,13 @@ class ConditionPickerPage extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: _commitAndClose,
             child: const Text('Selesai', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
       body: Obx(() {
-        final selected = sell.condition.value; // ambil dari SellController
+        final selected = c.selected.value;
 
         return ListView.separated(
           itemCount: c.options.length,
@@ -44,8 +65,8 @@ class ConditionPickerPage extends StatelessWidget {
 
             return InkWell(
               onTap: () {
-                sell.condition.value = item.title; // set ke SellController
-                Get.back();
+                c.select(item.title);
+                _commitAndClose(); // kalau mau langsung back saat pilih
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -81,10 +102,9 @@ class ConditionPickerPage extends StatelessWidget {
                       value: item.title,
                       groupValue: selected,
                       onChanged: (val) {
-                        if (val != null) {
-                          sell.condition.value = val; // set ke SellController
-                          Get.back();
-                        }
+                        if (val == null) return;
+                        c.select(val);
+                        _commitAndClose();
                       },
                     ),
                   ],

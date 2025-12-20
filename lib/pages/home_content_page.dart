@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/home_controller.dart';
+
+import 'package:prelovedly/view_model/home_controller.dart';
+import 'package:prelovedly/view_model/session_controller.dart';
+import 'package:prelovedly/view_model/like_controller.dart';
+
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/widgets/homepage_widget.dart';
-import 'package:prelovedly/controller/auth_controller.dart';
-import 'package:prelovedly/controller/like_controller.dart';
 
 class HomeContentPage extends StatelessWidget {
   const HomeContentPage({super.key});
@@ -13,10 +15,8 @@ class HomeContentPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.find<HomeController>();
-
-    final likeC = Get.isRegistered<LikeController>()
-        ? Get.find<LikeController>()
-        : Get.put(LikeController(), permanent: true);
+    final likeC = Get.find<LikeController>(); // ✅ dari binding
+    final session = SessionController.to; // ✅ viewerId source of truth
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -34,7 +34,6 @@ class HomeContentPage extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // ===== 2 cards =====
           SizedBox(
             height: 128,
             child: ListView(
@@ -57,7 +56,6 @@ class HomeContentPage extends StatelessWidget {
 
           const SizedBox(height: 22),
 
-          // ===== Rekomendasi seller =====
           const Text(
             'Rekomendasi seller',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
@@ -67,7 +65,6 @@ class HomeContentPage extends StatelessWidget {
           StreamBuilder<List<String>>(
             stream: c.recommendedSellerIdsStream(),
             builder: (context, snap) {
-              // ✅ tampilkan error kalau query seller error/index
               if (snap.hasError) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -101,12 +98,11 @@ class HomeContentPage extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(width: 14),
                   itemBuilder: (context, i) {
                     final sid = sellerIds[i];
-
                     return SellerCard(
                       sellerId: sid,
                       onTap: () {
                         Get.toNamed(
-                          Routes.shopProfile, // pastikan ada di routes
+                          Routes.shopProfile,
                           arguments: {"seller_id": sid},
                         );
                       },
@@ -119,7 +115,6 @@ class HomeContentPage extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // ===== Hot items header =====
           Row(
             children: [
               const Text(
@@ -136,8 +131,8 @@ class HomeContentPage extends StatelessWidget {
                   color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Row(
-                  children: const [
+                child: const Row(
+                  children: [
                     Text('Semua'),
                     SizedBox(width: 2),
                     Icon(Icons.arrow_drop_down, size: 18),
@@ -148,11 +143,9 @@ class HomeContentPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // ===== Hot items grid =====
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: c.hotItemsStream(),
             builder: (context, snap) {
-              // ✅ tampilkan error kalau query hot items error/index
               if (snap.hasError) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -181,75 +174,75 @@ class HomeContentPage extends StatelessWidget {
                 );
               }
 
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: docs.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 0.76,
-                ),
-                itemBuilder: (context, index) {
-                  final doc = docs[index];
-                  final data = doc.data();
-                  final productId = doc.id;
+              // ✅ viewerId dari session
+              return Obx(() {
+                final viewerId = session.viewerId.value;
 
-                  final sellerId = (data['seller_id'] ?? '').toString();
-                  final viewerId =
-                      AuthController.to.user.value?.id ?? ''; // ✅ UID login
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: docs.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: 0.76,
+                  ),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data = doc.data();
+                    final productId = doc.id;
+                    final sellerId = (data['seller_id'] ?? '').toString();
 
-                  return StreamBuilder<bool>(
-                    stream: viewerId.isEmpty
-                        ? Stream.value(false)
-                        : likeC.isLikedStream(
-                            viewerId: viewerId,
-                            productId: productId,
-                          ),
-                    builder: (context, likeSnap) {
-                      final liked = likeSnap.data == true;
-
-                      return HotItemCard(
-                        id: productId,
-                        data: data,
-                        isLiked: liked, // ✅ icon berubah
-                        onTap: () {
-                          Get.toNamed(
-                            Routes.productDetail,
-                            arguments: {
-                              "id": productId,
-                              "seller_id": sellerId,
-                              "viewer_id": viewerId,
-                              "is_me": viewerId == sellerId,
-                            },
-                          );
-                        },
-                        onLike: () async {
-                          if (viewerId.isEmpty) {
-                            Get.snackbar(
-                              'Login dulu',
-                              'Sesi kamu habis, silakan login ulang',
-                            );
-                            return;
-                          }
-
-                          try {
-                            await likeC.toggleLike(
+                    return StreamBuilder<bool>(
+                      stream: viewerId.isEmpty
+                          ? Stream.value(false)
+                          : likeC.isLikedStream(
                               viewerId: viewerId,
                               productId: productId,
-                              sellerId: sellerId,
-                              currentlyLiked: liked,
+                            ),
+                      builder: (context, likeSnap) {
+                        final liked = likeSnap.data == true;
+
+                        return HotItemCard(
+                          id: productId,
+                          data: data,
+                          isLiked: liked,
+                          onTap: () {
+                            Get.toNamed(
+                              Routes.productDetail,
+                              arguments: {
+                                "id": productId,
+                                "seller_id": sellerId,
+                                "viewer_id": viewerId,
+                                "is_me":
+                                    viewerId.isNotEmpty && viewerId == sellerId,
+                              },
                             );
-                          } catch (e) {
-                            Get.snackbar('Gagal', e.toString());
-                          }
-                        },
-                      );
-                    },
-                  );
-                },
-              );
+                          },
+                          onLike: () async {
+                            if (viewerId.isEmpty) {
+                              Get.snackbar('Login dulu', 'Silakan login ulang');
+                              return;
+                            }
+
+                            try {
+                              await likeC.toggleLike(
+                                viewerId: viewerId,
+                                productId: productId,
+                                sellerId: sellerId,
+                                currentlyLiked: liked,
+                              );
+                            } catch (e) {
+                              Get.snackbar('Gagal', e.toString());
+                            }
+                          },
+                        );
+                      },
+                    );
+                  },
+                );
+              });
             },
           ),
         ],

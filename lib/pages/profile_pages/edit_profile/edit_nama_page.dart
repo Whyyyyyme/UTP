@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
 
 class EditNamePage extends StatefulWidget {
   const EditNamePage({super.key});
@@ -10,12 +10,13 @@ class EditNamePage extends StatefulWidget {
 }
 
 class _EditNamePageState extends State<EditNamePage> {
+  final AuthController authC = Get.find<AuthController>();
+
   late TextEditingController _nameC;
 
   @override
   void initState() {
     super.initState();
-    final authC = Get.find<AuthController>();
     final currentName = authC.user.value?.nama ?? '';
     _nameC = TextEditingController(text: currentName);
   }
@@ -27,7 +28,6 @@ class _EditNamePageState extends State<EditNamePage> {
   }
 
   Future<void> _save() async {
-    final authC = Get.find<AuthController>();
     final newName = _nameC.text.trim();
 
     if (newName.isEmpty) {
@@ -35,20 +35,18 @@ class _EditNamePageState extends State<EditNamePage> {
       return;
     }
 
-    // Kalau tidak berubah, langsung back saja
+    // kalau tidak berubah, langsung back
     if (newName == (authC.user.value?.nama ?? '')) {
       Get.back();
       return;
     }
 
     await authC.updateProfile(nama: newName);
-    Get.back(); // kembali ke edit profile
+    Get.back();
   }
 
   @override
   Widget build(BuildContext context) {
-    final authC = Get.find<AuthController>();
-
     return Obx(() {
       final isLoading = authC.isLoading.value;
 
@@ -99,7 +97,12 @@ class _EditNamePageState extends State<EditNamePage> {
               children: [
                 TextField(
                   controller: _nameC,
-                  decoration: const InputDecoration(border: InputBorder.none),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => isLoading ? null : _save(),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Masukkan nama',
+                  ),
                 ),
                 const SizedBox(height: 8),
                 const Text(

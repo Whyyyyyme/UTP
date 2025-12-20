@@ -1,22 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/register_controller.dart';
-import 'register_password.dart';
+import 'package:prelovedly/view_model/register_controller.dart';
+import 'package:prelovedly/routes/app_routes.dart';
 import 'register.dart';
 
 class UsernameRegisterPage extends StatelessWidget {
-  final String email;
-  final String fullName;
-
-  const UsernameRegisterPage({
-    super.key,
-    required this.email,
-    required this.fullName,
-  });
+  const UsernameRegisterPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // RegisterController sudah di-Get.put di EmailRegisterPage
     final registerController = Get.find<RegisterController>();
 
     return Obx(() {
@@ -25,13 +17,7 @@ class UsernameRegisterPage extends StatelessWidget {
         isValid: registerController.isUsernameValid,
         onNext: () {
           if (registerController.isUsernameValid) {
-            Get.to(
-              () => PasswordRegisterPage(
-                email: email,
-                fullName: fullName,
-                username: registerController.username.value,
-              ),
-            );
+            Get.toNamed(Routes.registerPassword);
           }
         },
         child: Column(
@@ -39,6 +25,7 @@ class UsernameRegisterPage extends StatelessWidget {
           children: [
             TextField(
               decoration: InputDecoration(
+                labelText: 'Username',
                 errorText: registerController.usernameError.value,
               ),
               onChanged: registerController.validateUsername,

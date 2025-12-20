@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/product/color_picker_controller.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/product/color_picker_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 
 class ColorPickerPage extends StatelessWidget {
   const ColorPickerPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final ColorPickerController controller =
-        Get.isRegistered<ColorPickerController>()
-        ? Get.find()
-        : Get.put(ColorPickerController());
+    final c = Get.find<ColorPickerController>();
+    final sell = Get.find<SellController>();
 
-    final SellController sell = Get.find<SellController>();
-
-    // preload pilihan lama (biar pas balik masuk lagi tetap ke-checklist)
-    if (sell.color.value.isNotEmpty && controller.selected.isEmpty) {
-      controller.selected.assignAll(
+    // preload pilihan lama (sekali aja)
+    if (sell.color.value.isNotEmpty && c.selected.isEmpty) {
+      c.selected.assignAll(
         sell.color.value.split(', ').where((e) => e.isNotEmpty),
       );
     }
@@ -47,14 +43,15 @@ class ColorPickerPage extends StatelessWidget {
 
           Expanded(
             child: Obx(() {
-              controller.selected.length; // paksa Obx membaca Rx
+              // ✅ pastikan Rx kebaca
+              final _ = c.selected.length;
 
               return ListView.separated(
-                itemCount: controller.options.length,
+                itemCount: c.options.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
-                  final item = controller.options[index];
-                  final isSelected = controller.selected.contains(item.name);
+                  final item = c.options[index];
+                  final isSelected = c.selected.contains(item.name);
 
                   return ListTile(
                     leading: Container(
@@ -72,9 +69,9 @@ class ColorPickerPage extends StatelessWidget {
                     title: Text(item.name),
                     trailing: Checkbox(
                       value: isSelected,
-                      onChanged: (_) => controller.toggle(item.name),
+                      onChanged: (_) => c.toggle(item.name),
                     ),
-                    onTap: () => controller.toggle(item.name),
+                    onTap: () => c.toggle(item.name),
                   );
                 },
               );
@@ -82,7 +79,7 @@ class ColorPickerPage extends StatelessWidget {
           ),
 
           Obx(() {
-            final disabled = controller.selected.isEmpty;
+            final disabled = c.selected.isEmpty;
 
             return Container(
               width: double.infinity,
@@ -98,7 +95,7 @@ class ColorPickerPage extends StatelessWidget {
                 onPressed: disabled
                     ? null
                     : () {
-                        sell.color.value = controller.selected.join(', ');
+                        sell.color.value = c.selected.join(', ');
                         Get.back();
                       },
                 child: const Text(

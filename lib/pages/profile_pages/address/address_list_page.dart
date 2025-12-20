@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
-import 'package:prelovedly/controller/address_controller.dart';
+import 'package:prelovedly/view_model/address_controller.dart';
 import 'package:prelovedly/models/address_model.dart';
 import 'add_address_page.dart';
 
 class AddressListPage extends StatelessWidget {
   AddressListPage({super.key});
 
-  final AddressController addressC = Get.isRegistered<AddressController>()
-      ? Get.find<AddressController>()
-      : Get.put(AddressController());
-
   @override
   Widget build(BuildContext context) {
+    // ✅ Controller harus sudah didaftarkan lewat Binding di GetPage
+    final AddressController addressC = Get.find<AddressController>();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -108,7 +107,15 @@ class AddressListPage extends StatelessWidget {
                               );
 
                               if (confirm == true) {
-                                await addressC.deleteAddress(addr);
+                                final res = await addressC.deleteAddress(addr);
+                                final ok = res.$1;
+                                final msg = res.$2;
+
+                                Get.snackbar(
+                                  ok ? 'Berhasil' : 'Error',
+                                  msg,
+                                  snackPosition: SnackPosition.TOP,
+                                );
                               }
                             },
                             backgroundColor: Colors.red,

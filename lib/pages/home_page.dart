@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/home_controller.dart';
-import 'package:prelovedly/controller/main_nav_controller.dart';
+
+import 'package:prelovedly/view_model/home_controller.dart';
+import 'package:prelovedly/view_model/main_nav_controller.dart';
 import 'package:prelovedly/pages/home_content_page.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import '../widgets/rive_nav/animated_bottom_nav_bar.dart';
@@ -15,12 +16,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nav = Get.isRegistered<MainNavController>()
-        ? Get.find<MainNavController>()
-        : Get.put(MainNavController());
-
-    // ✅ pastikan controller home ter-register sekali
-    Get.put(HomeController(), permanent: true);
+    final nav = Get.find<MainNavController>();
 
     final pages = <Widget>[
       const HomeContentPage(),
@@ -69,10 +65,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
         padding: const EdgeInsets.only(left: 12),
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
-          onTap: () {
-            // ✅ klik search bar langsung ke tab Search
-            nav.changeTab(1);
-          },
+          onTap: () => nav.changeTab(1),
           child: Container(
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -106,9 +99,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 IconButton(
                   icon: const Icon(Icons.shopping_bag_outlined),
-                  onPressed: () {
-                    Get.toNamed(Routes.cart);
-                  },
+                  onPressed: () => Get.toNamed(Routes.cart),
                 ),
                 if (count > 0)
                   Positioned(

@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/register_controller.dart';
-import 'register_username.dart';
+import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/view_model/register_controller.dart';
 import 'register.dart';
 
 class NameRegisterPage extends StatelessWidget {
-  final String email;
-
-  const NameRegisterPage({super.key, required this.email});
+  const NameRegisterPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // RegisterController sudah di-Get.put di EmailRegisterPage
+    // ✅ ambil dari binding
     final registerController = Get.find<RegisterController>();
 
     return Obx(() {
@@ -20,11 +18,11 @@ class NameRegisterPage extends StatelessWidget {
         isValid: registerController.isNameValid,
         onNext: () {
           if (registerController.isNameValid) {
-            Get.to(
-              () => UsernameRegisterPage(
-                email: email,
-                fullName: registerController.name.value,
-              ),
+            Get.toNamed(
+              Routes.registerUsername,
+              arguments: {
+                // email sudah ada di controller
+              },
             );
           }
         },

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -73,7 +73,7 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.location_on_outlined,
                 label: 'Alamat penjual',
                 onTap: () {
-                  Get.toNamed(Routes.address);
+                  Get.toNamed(Routes.addressList);
                 },
               ),
               const Divider(height: 1),

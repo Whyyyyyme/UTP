@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/register_controller.dart';
+import 'package:prelovedly/view_model/register_controller.dart';
 import 'register_nama.dart';
 import 'register.dart';
 
@@ -9,16 +9,15 @@ class EmailRegisterPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Pastikan cuma dibuat sekali
-    final controller = Get.put(RegisterController());
+    final controller = Get.find<RegisterController>();
 
     return Obx(() {
       return RegisterScaffold(
         titleQuestion: 'Apa email kamu?',
-        isValid: controller.isEmailValid, // sekarang bool, bukan RxBool
+        isValid: controller.isEmailValid,
         onNext: () {
           if (controller.isEmailValid) {
-            Get.to(() => NameRegisterPage(email: controller.email.value));
+            Get.to(() => const NameRegisterPage());
           }
         },
         child: Column(
@@ -28,7 +27,7 @@ class EmailRegisterPage extends StatelessWidget {
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
                 labelText: 'Email address',
-                errorText: controller.emailError.value, // dari controller
+                errorText: controller.emailError.value,
               ),
               onChanged: controller.validateEmail,
             ),

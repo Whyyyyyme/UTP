@@ -18,8 +18,13 @@ abstract class Routes {
   static const editProfile = '/edit-profile';
   static const address = '/address';
   static const addAddress = '/add-address';
+  static const addressList = '/address-list';
+  static const editBio = '/edit-bio';
+  static const editName = '/edit-name';
+  static const editUsername = '/edit-username';
 
   // Sell
+  static const sellAddressIntro = '/sell-address-intro';
   static const sellProduct = '/sell-product';
   static const editDraft = '/edit-draft';
   static const category = '/category';
@@ -36,4 +41,5 @@ abstract class Routes {
   static const productDetail = '/product-detail';
 
   static const cart = '/cart';
+  static const followersFollowing = '/followers-following';
 }

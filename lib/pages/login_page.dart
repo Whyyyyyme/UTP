@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/login_controller.dart';
-import 'Register_pages/register_email.dart';
+import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/view_model/login_controller.dart';
 
 class LoginPage extends StatelessWidget {
   LoginPage({super.key});
@@ -11,7 +11,8 @@ class LoginPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final loginController = Get.put(LoginController());
+    // ✅ AMBIL dari binding
+    final loginController = Get.find<LoginController>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Login')),
@@ -28,11 +29,8 @@ class LoginPage extends StatelessWidget {
                   labelText: 'Email',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (val) => (val == null || val.trim().isEmpty)
-                    ? 'Masukkan email'
-                    : null,
               ),
+
               const SizedBox(height: 15),
 
               Obx(() {
@@ -48,59 +46,32 @@ class LoginPage extends StatelessWidget {
                             ? Icons.visibility_off
                             : Icons.visibility,
                       ),
-                      onPressed: () {
-                        loginController.obscurePassword.value =
-                            !loginController.obscurePassword.value;
-                      },
+                      onPressed: loginController.togglePassword,
                     ),
                   ),
-                  validator: (val) => (val == null || val.length < 6)
-                      ? 'Password minimal 6 karakter'
-                      : null,
                 );
               }),
 
               const SizedBox(height: 25),
 
               Obx(() {
-                final isLoading = loginController.isLoading.value;
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: isLoading
-                        ? null
-                        : () async {
-                            await loginController.login(
-                              _emailController.text.trim(),
-                              _passwordController.text.trim(),
-                            );
-                          },
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Login'),
-                  ),
-                );
-              }),
-
-              const SizedBox(height: 15),
-
-              Obx(() {
-                final isLoading = loginController.isLoading.value;
-                return TextButton(
-                  onPressed: isLoading
+                return ElevatedButton(
+                  onPressed: loginController.isLoading.value
                       ? null
-                      : () {
-                          Get.to(() => const EmailRegisterPage());
-                        },
-                  child: const Text('Belum punya akun? Daftar di sini'),
+                      : () => loginController.login(
+                          _emailController.text.trim(),
+                          _passwordController.text.trim(),
+                        ),
+                  child: loginController.isLoading.value
+                      ? const CircularProgressIndicator()
+                      : const Text('Login'),
                 );
               }),
 
-              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Get.toNamed(Routes.registerEmail),
+                child: const Text('Belum punya akun? Daftar'),
+              ),
 
               Obx(() {
                 final msg = loginController.errorMessage.value;

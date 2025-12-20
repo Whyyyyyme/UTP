@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 
 class SizePickerPage extends StatelessWidget {
   const SizePickerPage({super.key});

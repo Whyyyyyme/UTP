@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/product/category_controller.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/widgets/sell/sell_add_photo_card.dart';
@@ -28,7 +27,6 @@ class SellFormBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.find<SellController>();
-    final categoryController = Get.find<CategoryController>();
 
     return Column(
       children: [
@@ -109,15 +107,7 @@ class SellFormBody extends StatelessWidget {
                       ),
                     ),
                   ),
-                  onTap: () async {
-                    final result = await categoryController
-                        .pickCategory3Level();
-                    if (result == null) return;
-
-                    c.categoryName.value = result['full'] ?? '';
-                    c.categoryId.value =
-                        '${result['gender']}/${result['section']}/${result['item']}';
-                  },
+                  onTap: c.pickCategory,
                 ),
 
                 const Divider(height: 1),
@@ -288,7 +278,9 @@ class SellFormBody extends StatelessWidget {
                             if (ok) onAfterSave();
                           },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
+                      backgroundColor: (onRightPressed == null && !canUpload)
+                          ? Colors.grey.shade400
+                          : Colors.black,
                     ),
                     child: Text(rightText),
                   ),

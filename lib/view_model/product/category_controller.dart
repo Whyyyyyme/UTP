@@ -31,7 +31,6 @@ class CategoryController extends GetxController {
       'Bottoms': ['Jeans', 'Trousers', 'Skirts', 'Shorts', 'Leggings', 'Other'],
       'Outerwear': ['Jacket', 'Coat', 'Blazer', 'Cardigan', 'Other'],
       'Underwear': ['Bra', 'Panties', 'Lingerie set', 'Sleepwear', 'Other'],
-      'Accessories': ['Bags', 'Hats', 'Belts', 'Jewellery', 'Socks', 'Other'],
     },
     'Pria': {
       'Footwear': [
@@ -57,7 +56,6 @@ class CategoryController extends GetxController {
       'Bottoms': ['Jeans', 'Chinos', 'Shorts', 'Joggers', 'Trousers', 'Other'],
       'Outerwear': ['Jacket', 'Coat', 'Blazer', 'Cardigan', 'Other'],
       'Underwear': ['Briefs', 'Boxers', 'Singlets', 'Sleepwear', 'Other'],
-      'Accessories': ['Bags', 'Hats', 'Belts', 'Wallets', 'Socks', 'Other'],
     },
     'Anak': {
       'Pakaian': [

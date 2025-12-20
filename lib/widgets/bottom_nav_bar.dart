@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/main_nav_controller.dart';
+import 'package:prelovedly/view_model/main_nav_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 
 class BottomNavBar extends StatelessWidget {
@@ -18,7 +18,7 @@ class BottomNavBar extends StatelessWidget {
         onTap: (index) {
           // ✅ tombol tengah (+) → buka halaman jual
           if (index == 2) {
-            Get.toNamed(Routes.sellProduct);
+            Get.toNamed(Routes.sellAddressIntro);
             return;
           }
 

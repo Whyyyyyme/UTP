@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/controller/main_nav_controller.dart';
-import 'package:prelovedly/controller/sell_controller.dart';
+import 'package:prelovedly/view_model/main_nav_controller.dart';
+import 'package:prelovedly/view_model/sell_controller.dart';
 import 'package:prelovedly/widgets/sell/sell_form.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 
@@ -22,9 +22,8 @@ class _JualPageState extends State<JualPage> {
     sell = Get.find<SellController>();
     nav = Get.find<MainNavController>();
 
-    // ✅ panggil sekali saja (bukan di build)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      sell.startCreate();
+      sell.prepareCreate();
     });
   }
 
@@ -32,7 +31,6 @@ class _JualPageState extends State<JualPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -44,11 +42,10 @@ class _JualPageState extends State<JualPage> {
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
-
       body: SellFormBody(
         onAfterSave: () {
-          // ✅ balik ke halaman yang punya navbar (root)
-          Get.until((r) => r.settings.name == Routes.home);
+          // ✅ paling aman balik ke root home (yang punya navbar)
+          Get.offAllNamed(Routes.home);
 
           // ✅ pindah tab ke Profile
           nav.changeTab(4);

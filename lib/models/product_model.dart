@@ -89,4 +89,7 @@ class ProductModel {
       'updated_at': updatedAt,
     };
   }
+
+  bool get isDraft => status == 'draft';
+  bool get isPublished => status == 'published';
 }

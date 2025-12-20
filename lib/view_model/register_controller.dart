@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 class RegisterController extends GetxController {
+  // ================= EMAIL =================
   final email = ''.obs;
   final emailError = Rxn<String>();
 
@@ -11,15 +12,18 @@ class RegisterController extends GetxController {
     email.value = val;
     final trimmed = val.trim();
 
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
     if (trimmed.isEmpty) {
-      emailError.value = 'Email is required';
-    } else if (!trimmed.contains('@')) {
+      emailError.value = 'Email harus diisi';
+    } else if (!emailRegex.hasMatch(trimmed)) {
       emailError.value = 'Email tidak valid';
     } else {
       emailError.value = null;
     }
   }
 
+  // ================= NAME =================
   final name = ''.obs;
   final nameError = Rxn<String>();
 
@@ -27,16 +31,11 @@ class RegisterController extends GetxController {
       nameError.value == null && name.value.trim().isNotEmpty;
 
   void validateName(String val) {
-    name.value = val;
-    final trimmed = val.trim();
-
-    if (trimmed.isEmpty) {
-      nameError.value = 'Nama harus diisi';
-    } else {
-      nameError.value = null;
-    }
+    name.value = val.trim();
+    nameError.value = name.value.isEmpty ? 'Nama harus diisi' : null;
   }
 
+  // ================= USERNAME =================
   final username = ''.obs;
   final usernameError = Rxn<String>();
 
@@ -44,21 +43,18 @@ class RegisterController extends GetxController {
       usernameError.value == null && username.value.trim().isNotEmpty;
 
   void validateUsername(String val) {
-    username.value = val;
-    final trimmed = val.trim();
+    username.value = val.trim();
 
-    if (trimmed.isEmpty) {
+    if (username.value.isEmpty) {
       usernameError.value = 'Username harus diisi';
+    } else if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(username.value)) {
+      usernameError.value = 'Hanya huruf dan angka yang diperbolehkan';
     } else {
-      final regex = RegExp(r'^[a-zA-Z0-9]+$');
-      if (!regex.hasMatch(trimmed)) {
-        usernameError.value = 'Hanya huruf dan angka yang diperbolehkan';
-      } else {
-        usernameError.value = null;
-      }
+      usernameError.value = null;
     }
   }
 
+  // ================= PASSWORD =================
   final password = ''.obs;
   final passwordError = Rxn<String>();
 
@@ -76,10 +72,20 @@ class RegisterController extends GetxController {
       passwordError.value = null;
     } else {
       passwordError.value =
-          'Password harus minimal 8 karakter,\n1 angka, dan 1 huruf besar';
+          'Password minimal 6 karakter,\n1 angka, dan 1 huruf besar';
     }
   }
 
-  bool get canProceed =>
-      isEmailValid && isNameValid && isUsernameValid && isPasswordValid;
+  // ================= UTIL =================
+  void reset() {
+    email.value = '';
+    name.value = '';
+    username.value = '';
+    password.value = '';
+
+    emailError.value = null;
+    nameError.value = null;
+    usernameError.value = null;
+    passwordError.value = null;
+  }
 }

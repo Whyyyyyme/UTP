@@ -1,48 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
-
-import 'package:prelovedly/controller/auth_controller.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_bio_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_nama_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_username_page.dart';
 
 class EditProfilePage extends GetView<AuthController> {
   const EditProfilePage({super.key});
-
-  Future<void> _pickAndUploadPhoto() async {
-    try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-
-      if (picked == null) return;
-
-      final success = await controller.updateProfilePhoto(picked);
-
-      if (success) {
-        Get.snackbar(
-          'Berhasil',
-          'Foto profil berhasil diperbarui',
-          snackPosition: SnackPosition.TOP,
-        );
-      } else {
-        Get.snackbar(
-          'Error',
-          controller.errorMessage.value ?? 'Gagal mengubah foto profil',
-          snackPosition: SnackPosition.TOP,
-        );
-      }
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Gagal mengubah foto profil: $e',
-        snackPosition: SnackPosition.TOP,
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,11 +23,9 @@ class EditProfilePage extends GetView<AuthController> {
       final String nama = u.nama.isNotEmpty ? u.nama : 'Tidak ada nama';
       final String bio = u.bio.isNotEmpty ? u.bio : 'Tidak ada bio';
 
-      final String initial = username != '-' && username.isNotEmpty
+      final String initial = (username != '-' && username.isNotEmpty)
           ? username[0].toUpperCase()
-          : (nama != 'Tidak ada nama' && nama.isNotEmpty
-                ? nama[0].toUpperCase()
-                : 'U');
+          : (nama.isNotEmpty ? nama[0].toUpperCase() : 'U');
 
       final bool hasPhoto = u.fotoProfilUrl.isNotEmpty;
 
@@ -130,10 +92,29 @@ class EditProfilePage extends GetView<AuthController> {
                           ),
                         ),
                       const SizedBox(height: 8),
+
                       GestureDetector(
                         onTap: controller.isLoading.value
                             ? null
-                            : () => _pickAndUploadPhoto(),
+                            : () async {
+                                final ok = await controller
+                                    .pickAndUpdateProfilePhoto();
+
+                                if (ok) {
+                                  Get.snackbar(
+                                    'Berhasil',
+                                    'Foto profil berhasil diperbarui',
+                                    snackPosition: SnackPosition.TOP,
+                                  );
+                                } else if (controller.errorMessage.value !=
+                                    null) {
+                                  Get.snackbar(
+                                    'Error',
+                                    controller.errorMessage.value!,
+                                    snackPosition: SnackPosition.TOP,
+                                  );
+                                }
+                              },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -188,18 +169,14 @@ class EditProfilePage extends GetView<AuthController> {
                         _ProfileRow(
                           label: 'Name',
                           value: nama,
-                          onTap: () {
-                            Get.to(() => const EditNamePage());
-                          },
+                          onTap: () => Get.to(() => const EditNamePage()),
                         ),
                         const Divider(height: 1),
                         _ProfileRow(
                           label: 'Bio',
                           value: bio,
                           isHint: bio == 'Tidak ada bio',
-                          onTap: () {
-                            Get.to(() => const EditBioPage());
-                          },
+                          onTap: () => Get.to(() => const EditBioPage()),
                         ),
                       ],
                     ),
