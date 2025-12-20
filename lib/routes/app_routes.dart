@@ -12,6 +12,7 @@ abstract class Routes {
   // Main Page
   static const home = '/home';
   static const profile = '/profile';
+  static const inbox = '/inbox';
 
   // Profile
   static const shopProfile = '/shop-profile';
@@ -43,4 +44,6 @@ abstract class Routes {
 
   static const cart = '/cart';
   static const followersFollowing = '/followers-following';
+  static const nego = '/nego';
+  static const chat = '/chat';
 }

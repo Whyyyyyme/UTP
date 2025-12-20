@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import 'package:prelovedly/view_model/home_controller.dart';
 import 'package:prelovedly/view_model/main_nav_controller.dart';
 import 'package:prelovedly/pages/home_content_page.dart';

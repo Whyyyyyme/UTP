@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import 'package:prelovedly/view_model/auth_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/view_model/session_controller.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -27,6 +28,7 @@ class ProfilePage extends StatelessWidget {
       final initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
       final fotoUrl = user.fotoProfilUrl;
       final hasPhoto = fotoUrl.isNotEmpty;
+      final myId = SessionController.to.viewerId.value;
 
       return Scaffold(
         appBar: AppBar(
@@ -47,7 +49,7 @@ class ProfilePage extends StatelessWidget {
                 onTap: () {
                   Get.toNamed(
                     Routes.shopProfile,
-                    arguments: {'initialTabIndex': 0},
+                    arguments: {'initialTabIndex': 0, 'sellerId': myId},
                   );
                 },
                 child: Container(
@@ -147,9 +149,7 @@ class ProfilePage extends StatelessWidget {
                 // langsung buka detail profil tab Likes
                 Get.toNamed(
                   Routes.shopProfile,
-                  arguments: {
-                    'initialTabIndex': 1, // Likes
-                  },
+                  arguments: {'initialTabIndex': 1, 'sellerId': myId},
                 );
               },
             ),

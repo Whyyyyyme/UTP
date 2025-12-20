@@ -19,6 +19,13 @@ class ShopProfileScreen extends StatelessWidget {
     final isLong = bio.length > maxPreviewChars;
 
     return Obx(() {
+      final sellerId = c.targetUserId.value;
+
+      if (sellerId.isEmpty) {
+        return const Scaffold(
+          body: Center(child: Text('Seller tidak ditemukan')),
+        );
+      }
       final expanded = c.showFullBio.value;
       final displayText = (isLong && !expanded)
           ? '${bio.substring(0, maxPreviewChars)}...'
@@ -321,13 +328,14 @@ class ShopProfileScreen extends StatelessWidget {
                               Expanded(
                                 child: Obx(() {
                                   return ElevatedButton(
-                                    onPressed: () {
+                                    onPressed: () async {
                                       if (c.isMe) {
                                         Get.toNamed(Routes.sellProduct);
                                       } else {
-                                        Get.snackbar(
-                                          'Message',
-                                          'Fitur message belum dihubungkan',
+                                        await c.openChatWithSeller(
+                                          sellerId: c.targetUserId.value.trim(),
+                                          sellerName: nama,
+                                          sellerPhoto: foto,
                                         );
                                       }
                                     },

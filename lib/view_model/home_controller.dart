@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -14,7 +15,9 @@ class HomeController extends GetxController {
   final RxInt cartCount = 0.obs;
 
   StreamSubscription<int>? _cartCountSub;
-  late final Worker _viewerWorker;
+  Worker? _viewerWorker;
+
+  String _lastViewerId = ''; // ✅ guard biar gak re-bind terus
 
   @override
   void onInit() {
@@ -22,13 +25,19 @@ class HomeController extends GetxController {
 
     cartCount.value = 0;
 
-    // ✅ listen viewerId dari SessionController
+    // ✅ bind awal
+    final initial = SessionController.to.viewerId.value;
+    _lastViewerId = initial;
+    _bindViewer(initial);
+
+    // ✅ listen perubahan viewerId
     _viewerWorker = ever<String>(SessionController.to.viewerId, (uid) {
+      debugPrint('viewerId changed => $uid');
+      if (uid == _lastViewerId) return;
+      _lastViewerId = uid;
+
       _bindViewer(uid);
     });
-
-    // ✅ bind langsung ke nilai awal (kalau udah login sebelum home kebuka)
-    _bindViewer(SessionController.to.viewerId.value);
   }
 
   void _bindViewer(String viewerId) {
@@ -64,7 +73,7 @@ class HomeController extends GetxController {
 
   @override
   void onClose() {
-    _viewerWorker.dispose();
+    _viewerWorker?.dispose();
     _cartCountSub?.cancel();
     super.onClose();
   }

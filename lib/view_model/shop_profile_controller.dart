@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
-
+import 'package:prelovedly/data/repository/chat_repository.dart';
 import 'package:prelovedly/models/product_model.dart';
+import 'package:prelovedly/view_model/session_controller.dart';
 import '../data/repository/shop_profile_repository.dart';
 
 import '../routes/app_routes.dart';
@@ -38,7 +40,47 @@ class ShopProfileController extends GetxController {
     followC = Get.find<FollowController>();
     likeC = Get.find<LikeController>();
 
+    _resolveSellerIdFromRoute();
     _readArgs();
+  }
+
+  void _resolveSellerIdFromRoute() {
+    String sid = '';
+
+    final raw = Get.arguments;
+
+    if (raw is Map) {
+      sid =
+          (raw['sellerId'] ??
+                  raw['seller_id'] ??
+                  raw['userId'] ??
+                  raw['uid'] ??
+                  raw['id'] ??
+                  raw['myId'] ??
+                  '')
+              .toString()
+              .trim();
+    }
+
+    if (sid.isEmpty) {
+      sid =
+          (Get.parameters['sellerId'] ??
+                  Get.parameters['seller_id'] ??
+                  Get.parameters['userId'] ??
+                  Get.parameters['uid'] ??
+                  Get.parameters['id'] ??
+                  Get.parameters['myId'] ??
+                  '')
+              .toString()
+              .trim();
+    }
+
+    if (sid.isEmpty) {
+      // kalau masih kosong, jangan set apa-apa
+      return;
+    }
+
+    targetUserId.value = sid;
   }
 
   void _readArgs() {
@@ -123,5 +165,68 @@ class ShopProfileController extends GetxController {
       Routes.followersFollowing,
       arguments: {'userId': targetUserId.value, 'initialIndex': initialIndex},
     );
+  }
+
+  Future<void> openChatWithSeller({
+    required String sellerId,
+    required String sellerName,
+    required String sellerPhoto,
+  }) async {
+    final myUid = SessionController.to.viewerId.value;
+
+    if (myUid.isEmpty) {
+      Get.snackbar('Info', 'Kamu belum login');
+      return;
+    }
+
+    if (sellerId.trim().isEmpty) {
+      Get.snackbar('Error', 'sellerId kosong');
+      return;
+    }
+
+    if (sellerId == myUid) {
+      Get.snackbar('Info', 'Tidak bisa chat dengan diri sendiri');
+      return;
+    }
+
+    try {
+      final db = FirebaseFirestore.instance;
+
+      // ambil data saya
+      final myDoc = await db.collection('users').doc(myUid).get();
+      final my = myDoc.data() ?? {};
+
+      final myName = (my['username'] ?? my['nama'] ?? my['name'] ?? 'user')
+          .toString();
+      final myPhoto = (my['foto_profil_url'] ?? my['photoUrl'] ?? '')
+          .toString();
+
+      const productId = 'general';
+
+      final chatRepo = Get.find<ChatRepository>();
+
+      final threadId = await chatRepo.ensureThread(
+        myUid: myUid,
+        peerId: sellerId,
+        productId: productId,
+        productTitle: '',
+        productImage: '',
+        myName: myName,
+        myPhoto: myPhoto,
+        peerName: sellerName,
+        peerPhoto: sellerPhoto,
+      );
+
+      Get.toNamed(
+        Routes.chat,
+        arguments: {
+          'threadId': threadId,
+          'peerId': sellerId,
+          'productId': productId,
+        },
+      );
+    } catch (e) {
+      Get.snackbar('Error', 'Gagal membuka chat: $e');
+    }
   }
 }

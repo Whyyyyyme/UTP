@@ -3,13 +3,16 @@ import 'package:get/get.dart';
 class SessionController extends GetxController {
   static SessionController get to => Get.find<SessionController>();
 
-  final viewerId = ''.obs;
+  final RxString viewerId = ''.obs;
 
   void setViewer(String uid) {
-    viewerId.value = uid;
+    final next = uid.trim();
+    if (viewerId.value == next) return; // 🔐 guard
+    viewerId.value = next;
   }
 
   void clear() {
+    if (viewerId.value.isEmpty) return;
     viewerId.value = '';
   }
 }

@@ -2,20 +2,29 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prelovedly/data/repository/cart_repository.dart';
+import 'package:prelovedly/data/repository/chat_repository.dart';
 import 'package:prelovedly/data/repository/follow_repository.dart';
+import 'package:prelovedly/data/repository/inbox_repository.dart';
 import 'package:prelovedly/data/repository/like_repository.dart';
 import 'package:prelovedly/data/repository/manage_product_repository.dart';
+import 'package:prelovedly/data/repository/nego_repository.dart';
 import 'package:prelovedly/data/repository/product_repository.dart';
 import 'package:prelovedly/data/repository/sell_repository.dart';
 import 'package:prelovedly/data/repository/shop_profile_repository.dart';
 import 'package:prelovedly/data/repository/user_repository.dart';
 import 'package:prelovedly/data/services/cart_service.dart';
+import 'package:prelovedly/data/services/chat_service.dart';
 import 'package:prelovedly/data/services/follow_service.dart';
+import 'package:prelovedly/data/services/inbox_service.dart';
 import 'package:prelovedly/data/services/like_service.dart';
 import 'package:prelovedly/data/services/manage_product_service.dart';
+import 'package:prelovedly/data/services/nego_service.dart';
 import 'package:prelovedly/data/services/product_service.dart';
 import 'package:prelovedly/data/services/sell_service.dart';
 import 'package:prelovedly/data/services/shop_profile.dart';
+import 'package:prelovedly/pages/chat/chat_page.dart';
+import 'package:prelovedly/pages/inbox_page.dart';
+import 'package:prelovedly/pages/product/nego_page.dart';
 import 'package:prelovedly/pages/product/product_detail_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_product_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_bio_page.dart';
@@ -36,9 +45,12 @@ import 'package:prelovedly/pages/sell_pages/edit_draft_page.dart';
 import 'package:prelovedly/pages/sell_pages/sell_page.dart';
 import 'package:prelovedly/pages/sell_pages/style_picker_page.dart';
 import 'package:prelovedly/view_model/cart_controller.dart';
+import 'package:prelovedly/view_model/chat_controller.dart';
 import 'package:prelovedly/view_model/follow_controller.dart';
+import 'package:prelovedly/view_model/inbox_controller.dart';
 import 'package:prelovedly/view_model/login_controller.dart';
 import 'package:prelovedly/view_model/manage_product_controller.dart';
+import 'package:prelovedly/view_model/nego_controller.dart';
 import 'package:prelovedly/view_model/product/brand_controller.dart';
 import 'package:prelovedly/view_model/product/color_picker_controller.dart';
 import 'package:prelovedly/view_model/product/condition_picker_controller.dart';
@@ -163,6 +175,27 @@ class AppPages {
     if (!Get.isRegistered<CartController>()) {
       Get.put<CartController>(
         CartController(Get.find<CartRepository>()),
+        permanent: true,
+      );
+    }
+
+    if (!Get.isRegistered<InboxService>()) {
+      Get.lazyPut<InboxService>(
+        () => InboxService(FirebaseFirestore.instance),
+        fenix: true,
+      );
+    }
+
+    if (!Get.isRegistered<InboxRepository>()) {
+      Get.lazyPut<InboxRepository>(
+        () => InboxRepository(Get.find<InboxService>()),
+        fenix: true,
+      );
+    }
+
+    if (!Get.isRegistered<InboxController>()) {
+      Get.put<InboxController>(
+        InboxController(Get.find<InboxRepository>()),
         permanent: true,
       );
     }
@@ -340,6 +373,20 @@ class AppPages {
         permanent: true,
       );
     }
+  }
+
+  static void _ensureChat() {
+    Get.lazyPut<ChatService>(
+      () => ChatService(FirebaseFirestore.instance),
+      fenix: true,
+    );
+    Get.lazyPut<ChatRepository>(
+      () => ChatRepository(Get.find<ChatService>()),
+      fenix: true,
+    );
+    Get.create<ChatController>(
+      () => ChatController(Get.find<ChatRepository>()),
+    );
   }
 
   static final routes = <GetPage>[
@@ -554,10 +601,38 @@ class AppPages {
     ),
 
     GetPage(
+      name: Routes.nego,
+      page: () => const NegoPage(),
+      binding: BindingsBuilder(() {
+        ensureGlobals();
+        _ensureChat();
+
+        if (!Get.isRegistered<NegoService>()) {
+          Get.lazyPut<NegoService>(
+            () => NegoService(FirebaseFirestore.instance),
+            fenix: true,
+          );
+        }
+
+        if (!Get.isRegistered<NegoRepository>()) {
+          Get.lazyPut<NegoRepository>(
+            () => NegoRepository(Get.find<NegoService>()),
+            fenix: true,
+          );
+        }
+
+        if (!Get.isRegistered<NegoController>()) {
+          Get.put<NegoController>(NegoController(Get.find<NegoRepository>()));
+        }
+      }),
+    ),
+
+    GetPage(
       name: Routes.shopProfile,
       page: () => ShopProfileScreen(),
       binding: BindingsBuilder(() {
         _ensureShopProfile();
+        _ensureChat();
       }),
     ),
 
@@ -646,6 +721,23 @@ class AppPages {
       page: () => const SettingsPage(),
       binding: BindingsBuilder(() {
         ensureGlobals();
+      }),
+    ),
+
+    GetPage(
+      name: Routes.inbox,
+      page: () => InboxPage(),
+      binding: BindingsBuilder(() {
+        ensureGlobals();
+      }),
+    ),
+
+    GetPage(
+      name: Routes.chat,
+      page: () => const ChatPage(),
+      binding: BindingsBuilder(() {
+        ensureGlobals();
+        _ensureChat();
       }),
     ),
 

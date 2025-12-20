@@ -10,7 +10,7 @@ import '../../view_model/home_controller.dart';
 class ProductDetailPage extends StatelessWidget {
   ProductDetailPage({super.key});
 
-  final controller = Get.put(ProductDetailController());
+  final controller = Get.find<ProductDetailController>();
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +102,18 @@ class ProductDetailPage extends StatelessWidget {
                               sellerId: sellerId,
                               isMe: controller.isMe.value,
                               fetchSeller: controller.getSellerUser,
-                              onMessage: () {},
+                              onMessage: () async {
+                                final cover = images.isNotEmpty
+                                    ? images.first
+                                    : '';
+
+                                await controller.openChatFromProduct(
+                                  sellerId: sellerId,
+                                  productId: productId,
+                                  productTitle: title,
+                                  productImage: cover,
+                                );
+                              },
                               onSeeProfile: () {},
                             ),
                             const SizedBox(height: 14),
@@ -278,8 +289,21 @@ class ProductDetailPage extends StatelessWidget {
                   child: _BottomBar(
                     canBuy: controller.canBuy,
                     canManage: controller.canManage,
-                    onNego: () =>
-                        Get.snackbar('Nego', 'Fitur nego belum dihubungkan'),
+                    onNego: () {
+                      final cover = images.isNotEmpty ? images.first : '';
+
+                      Get.toNamed(
+                        Routes.nego,
+                        arguments: {
+                          'productId': productId,
+                          'sellerId': sellerId,
+                          'title': title,
+                          'imageUrl': cover,
+                          'price': price,
+                        },
+                      );
+                    },
+
                     onBuy: () async {
                       await controller.buy(
                         sellerId: sellerId,
