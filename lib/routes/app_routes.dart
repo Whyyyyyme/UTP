@@ -7,6 +7,7 @@ abstract class Routes {
   static const registerName = '/register-name';
   static const registerUsername = '/register-username';
   static const registerPassword = '/register-password';
+  static const adminDashboard = '/admin-dashboard';
 
   // Main Page
   static const home = '/home';

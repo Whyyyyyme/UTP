@@ -1,3 +1,4 @@
 {
-    "CodeGPT.apiKey": "Anthropic"
+    "CodeGPT.apiKey": "Anthropic",
+    "cmake.sourceDirectory": "C:/Users/Axioo Pongo/Desktop/SEMESTER 5/MOPRO/UAP/UTP/linux"
 }

@@ -7,6 +7,7 @@ class UserModel {
   final String alamat;
   final String noTelp;
   final String fotoProfilUrl;
+  final String role;
 
   UserModel({
     required this.id,
@@ -17,6 +18,7 @@ class UserModel {
     required this.alamat,
     required this.noTelp,
     required this.fotoProfilUrl,
+    required this.role,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -29,6 +31,7 @@ class UserModel {
       alamat: map['alamat'] ?? '',
       noTelp: map['no_telp'] ?? '',
       fotoProfilUrl: map['foto_profil_url'] ?? '',
+      role: map['role'] ?? 'pembeli',
     );
   }
 
@@ -44,6 +47,8 @@ class UserModel {
       'foto_profil_url': fotoProfilUrl,
     };
   }
+
+  void operator [](String other) {}
 }
 
 extension UserModelCopy on UserModel {

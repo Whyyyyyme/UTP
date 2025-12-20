@@ -33,6 +33,7 @@ import 'package:prelovedly/pages/sell_pages/atribut_produk/material_picker_page.
 import 'package:prelovedly/pages/sell_pages/atribut_produk/price_page.dart';
 import 'package:prelovedly/pages/sell_pages/atribut_produk/size_picker_page.dart';
 import 'package:prelovedly/pages/sell_pages/edit_draft_page.dart';
+import 'package:prelovedly/pages/sell_pages/sell_page.dart';
 import 'package:prelovedly/pages/sell_pages/style_picker_page.dart';
 import 'package:prelovedly/view_model/cart_controller.dart';
 import 'package:prelovedly/view_model/follow_controller.dart';
@@ -82,8 +83,7 @@ import 'package:prelovedly/pages/Register_pages/register_nama.dart';
 import 'package:prelovedly/pages/Register_pages/register_username.dart';
 import 'package:prelovedly/pages/Register_pages/register_password.dart';
 
-// kalau kamu punya halaman jual utama (bukan intro)
-import 'package:prelovedly/pages/sell_pages/sell_page.dart'; // JualPage
+import 'package:prelovedly/pages/admin_pages/admin_dashboard_page.dart';
 
 class AppPages {
   AppPages._();
@@ -364,6 +364,7 @@ class AppPages {
         _ensureRegister();
       }),
     ),
+
     GetPage(
       name: Routes.registerName,
       page: () => const NameRegisterPage(),
@@ -648,6 +649,16 @@ class AppPages {
       }),
     ),
 
+    // ===============
+    //      ADMIN
+    // ===============
+    GetPage(
+      name: Routes.adminDashboard,
+      page: () => const AdminDashboardPage(),
+      binding: BindingsBuilder(() {
+        _ensureAuth();
+      }),
+    ),
     // ... route lain lanjutkan
   ];
 }
