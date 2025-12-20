@@ -26,13 +26,33 @@ class BottomNavBar extends StatelessWidget {
           nav.changeTab(index);
         },
 
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.add), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.inbox), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
+          const BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
+
+          BottomNavigationBarItem(
+            label: '',
+            icon: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.black, // bisa kamu ganti sesuai tema
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 12,
+                    color: Colors.black.withOpacity(0.25),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 28),
+            ),
+          ),
+
+          const BottomNavigationBarItem(icon: Icon(Icons.inbox), label: ''),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
         ],
+
       );
     });
   }

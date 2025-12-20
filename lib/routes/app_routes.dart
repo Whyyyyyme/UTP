@@ -3,6 +3,7 @@ abstract class Routes {
 
   // Login & Register
   static const login = '/login';
+  static const emailLogin = '/email-login';
   static const registerEmail = '/register-email';
   static const registerName = '/register-name';
   static const registerUsername = '/register-username';

@@ -16,6 +16,7 @@ import 'package:prelovedly/data/services/manage_product_service.dart';
 import 'package:prelovedly/data/services/product_service.dart';
 import 'package:prelovedly/data/services/sell_service.dart';
 import 'package:prelovedly/data/services/shop_profile.dart';
+import 'package:prelovedly/pages/email_login_page.dart';
 import 'package:prelovedly/pages/product/product_detail_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_product_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_bio_page.dart';
@@ -346,9 +347,17 @@ class AppPages {
     // ======================
     // AUTH
     // ======================
-    GetPage(
+  GetPage(
       name: Routes.login,
-      page: () => LoginPage(),
+      page: () => const LoginPage(), // landing fixed
+      binding: BindingsBuilder(() {
+        ensureGlobals();
+      }),
+    ),
+
+    GetPage(
+      name: Routes.emailLogin,
+      page: () => const EmailLoginPage(),
       binding: BindingsBuilder(() {
         ensureGlobals();
         if (!Get.isRegistered<LoginController>()) {

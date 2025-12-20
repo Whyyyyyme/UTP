@@ -1,21 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:prelovedly/routes/app_routes.dart';
-import 'package:prelovedly/view_model/login_controller.dart';
-import 'package:prelovedly/pages/email_login_page.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  late final LoginController loginController;
-
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
 
   void _snack(String msg) {
     Get.snackbar(
@@ -31,62 +19,43 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    loginController = Get.find<LoginController>(); // ✅ dari binding
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, c) {
           final h = c.maxHeight;
 
+          // Skala agar tetap muat 1 page (tanpa scroll)
           final scale = (h / 760).clamp(0.85, 1.0);
 
           final logoWidth = 220 * scale;
           final topPad = 70 * scale;
-          final midGap = 60 * scale;
+          final midGap = 70 * scale; // jarak logo -> tombol
           final btnH = 52 * scale;
-          final gap12 = 12 * scale;
-          final gap18 = 18 * scale;
-          final gap22 = 22 * scale;
 
           return Stack(
             children: [
               // Background image
-              Container(
-                width: double.infinity,
-                height: double.infinity,
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/images/baground6.jpg'),
-                    fit: BoxFit.cover,
-                  ),
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/baground6.jpg', // ganti sesuai file kamu
+                  fit: BoxFit.cover,
                 ),
               ),
 
               // Overlay gelap
-              Container(
-                width: double.infinity,
-                height: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x66000000),
-                      Color(0xB3000000),
-                      Color(0xE6000000),
-                    ],
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0x66000000),
+                        Color(0xB3000000),
+                        Color(0xE6000000),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -123,131 +92,7 @@ class _LoginPageState extends State<LoginPage> {
 
                           SizedBox(height: midGap),
 
-                          // ===== OPTIONAL: Form Email & Password (biar tombol Login bisa jalan di halaman ini)
-                          TextField(
-                            controller: _emailController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              hintText: "Email",
-                              hintStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white.withOpacity(0.12),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.25),
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.25),
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 12 * scale),
-
-                          Obx(() {
-                            final obscure =
-                                loginController.obscurePassword.value;
-                            return TextField(
-                              controller: _passwordController,
-                              obscureText: obscure,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                hintText: "Password",
-                                hintStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white.withOpacity(0.12),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(
-                                    color: Colors.white.withOpacity(0.25),
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(
-                                    color: Colors.white.withOpacity(0.25),
-                                  ),
-                                ),
-                                suffixIcon: IconButton(
-                                  onPressed: loginController.togglePassword,
-                                  icon: Icon(
-                                    obscure
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-
-                          SizedBox(height: gap18),
-
-                          // Tombol Login (email+password)
-                          Obx(() {
-                            final loading = loginController.isLoading.value;
-                            return SizedBox(
-                              width: double.infinity,
-                              height: btnH,
-                              child: ElevatedButton(
-                                onPressed: loading
-                                    ? null
-                                    : () => loginController.login(
-                                        _emailController.text.trim(),
-                                        _passwordController.text.trim(),
-                                      ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                child: loading
-                                    ? const SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Text(
-                                        "Login",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                              ),
-                            );
-                          }),
-
-                          const SizedBox(height: 10),
-
-                          Obx(() {
-                            final msg = loginController.errorMessage.value;
-                            return msg.isNotEmpty
-                                ? Text(
-                                    msg,
-                                    style: const TextStyle(
-                                      color: Colors.redAccent,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  )
-                                : const SizedBox.shrink();
-                          }),
-
-                          SizedBox(height: gap22),
-
-                          // BUTTON Google
+                          // Google
                           _AuthButton(
                             height: btnH,
                             background: Colors.white,
@@ -263,9 +108,9 @@ class _LoginPageState extends State<LoginPage> {
                                 _snack("Google Sign-In belum diaktifkan"),
                           ),
 
-                          SizedBox(height: gap12),
+                          SizedBox(height: 12 * scale),
 
-                          // BUTTON Apple
+                          // Apple
                           _AuthButton(
                             height: btnH,
                             background: Colors.white,
@@ -280,7 +125,7 @@ class _LoginPageState extends State<LoginPage> {
                                 _snack("Apple Sign-In belum diaktifkan"),
                           ),
 
-                          SizedBox(height: gap18),
+                          SizedBox(height: 18 * scale),
 
                           // atau
                           Row(
@@ -312,18 +157,18 @@ class _LoginPageState extends State<LoginPage> {
                             ],
                           ),
 
-                          SizedBox(height: gap18),
+                          SizedBox(height: 18 * scale),
 
-                          // Daftar email
+                          // Daftar dengan email
                           _OutlineAuthButton(
                             height: btnH,
                             text: "Daftar dengan email",
                             onPressed: () => Get.toNamed(Routes.registerEmail),
                           ),
 
-                          SizedBox(height: gap22),
+                          SizedBox(height: 20 * scale),
 
-                          // Sudah punya account? Login
+                          // Sudah punya account? Login (ke EmailLoginPage route)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -335,8 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () =>
-                                    Get.to(() => const EmailLoginPage()),
+                                onTap: () => Get.toNamed(Routes.emailLogin),
                                 child: Text(
                                   "Login",
                                   style: TextStyle(
@@ -352,6 +196,7 @@ class _LoginPageState extends State<LoginPage> {
 
                           SizedBox(height: 14 * scale),
 
+                          // Register nanti
                           GestureDetector(
                             onTap: () => _snack("Guest mode belum diatur"),
                             child: Text(
