@@ -25,6 +25,8 @@ import 'package:prelovedly/data/services/shop_profile.dart';
 import 'package:prelovedly/pages/chat/chat_page.dart';
 import 'package:prelovedly/pages/inbox_page.dart';
 import 'package:prelovedly/pages/product/nego_page.dart';
+import 'package:prelovedly/pages/email_login_page.dart';
+
 import 'package:prelovedly/pages/product/product_detail_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_product_page.dart';
 import 'package:prelovedly/pages/profile_pages/edit_profile/edit_bio_page.dart';
@@ -395,7 +397,15 @@ class AppPages {
     // ======================
     GetPage(
       name: Routes.login,
-      page: () => LoginPage(),
+      page: () => const LoginPage(), // landing fixed
+      binding: BindingsBuilder(() {
+        ensureGlobals();
+      }),
+    ),
+
+    GetPage(
+      name: Routes.emailLogin,
+      page: () => const EmailLoginPage(),
       binding: BindingsBuilder(() {
         ensureGlobals();
         if (!Get.isRegistered<LoginController>()) {
@@ -553,7 +563,6 @@ class AppPages {
       }),
     ),
 
-    // ✅ kalau kamu punya halaman jual utama (misal: JualPage / SellPage)
     // Pastikan Routes.jualPage ada di app_routes.dart
     GetPage(
       name: Routes.sellProduct,
