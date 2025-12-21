@@ -1,6 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-
 import '../../models/chat_message_model.dart';
 import '../../models/chat_thread_model.dart';
 import '../../utils/chat_thread_util.dart';
@@ -30,6 +28,65 @@ class ChatRepository {
           .map((d) => ChatMessageModel.fromDoc(d.id, d.data()))
           .toList();
     });
+  }
+
+  Future<ChatThreadModel?> findOfferThreadForProduct({
+    required String uid,
+    required String peerId,
+    required String productId,
+  }) async {
+    final snap = await _service.findThreadsByPeerAndProduct(
+      uid: uid,
+      peerId: peerId,
+      productId: productId,
+    );
+
+    if (snap.docs.isEmpty) return null;
+
+    final d = snap.docs.first;
+    final model = ChatThreadModel.fromMap(d.id, d.data());
+
+    if (model.offer == null) return null;
+
+    return model;
+  }
+
+  Future<ChatThreadModel?> findLatestThreadWithSeller({
+    required String uid,
+    required String peerId,
+  }) async {
+    final snap = await _service.findLatestThreadByPeer(
+      uid: uid,
+      peerId: peerId,
+    );
+
+    if (snap.docs.isEmpty) return null;
+
+    final d = snap.docs.first;
+    return ChatThreadModel.fromMap(d.id, d.data());
+  }
+
+  Future<bool> hasAcceptedOfferWithSeller({
+    required String uid,
+    required String sellerId,
+  }) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('inbox')
+        .where('sellerId', isEqualTo: sellerId)
+        .where('offer.status', isEqualTo: 'accepted')
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) return false;
+
+    final data = snap.docs.first.data();
+    final offer = (data['offer'] as Map?) ?? {};
+    final buyerId = (offer['buyerId'] ?? '').toString();
+    final sId = (offer['sellerId'] ?? '').toString();
+
+    return buyerId == uid && sId == sellerId;
   }
 
   // ========== ENSURE THREAD ==========
@@ -137,14 +194,6 @@ class ChatRepository {
   }) async {
     final participants = <String>[buyerId, sellerId];
 
-    debugPrint(
-      '🧩 ChatRepository acceptOffer using service=${_service.runtimeType}',
-    );
-    debugPrint(
-      '✅ acceptOffer threadId=$threadId buyerId=$buyerId sellerId=$sellerId',
-    );
-
-    // ✅ INI YANG BENAR: update nested offer.status pakai ChatService
     await _service.updateOfferStatus(
       buyerId: buyerId,
       sellerId: sellerId,

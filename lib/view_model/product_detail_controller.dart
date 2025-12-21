@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import 'package:prelovedly/data/repository/chat_repository.dart';
 import 'package:prelovedly/data/services/chat_service.dart';
+import 'package:prelovedly/models/chat_thread_model.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/view_model/auth_controller.dart';
 
@@ -16,6 +18,14 @@ import '../../data/repository/product_repository.dart';
 class ProductDetailController extends GetxController {
   final AuthController authC = Get.find<AuthController>();
   final ProductRepository _repo;
+
+  late final ChatRepository chatRepo;
+
+  final offerThread = Rxn<ChatThreadModel>();
+  final sellerChatThread = Rxn<ChatThreadModel>();
+  final isCheckingThread = false.obs;
+  final hasAcceptedOfferWithSeller = false.obs;
+  String _lastLoadKey = '';
 
   ProductDetailController({ProductRepository? repo})
     : _repo = repo ?? ProductRepository();
@@ -40,6 +50,24 @@ class ProductDetailController extends GetxController {
     super.onInit();
     likeC = Get.find<LikeController>();
     _readArgs();
+
+    // ✅ ensure ChatService + ChatRepository ada
+    if (!Get.isRegistered<ChatService>()) {
+      Get.lazyPut(() => ChatService(FirebaseFirestore.instance), fenix: true);
+    }
+    if (!Get.isRegistered<ChatRepository>()) {
+      Get.lazyPut(() => ChatRepository(Get.find<ChatService>()), fenix: true);
+    }
+    chatRepo = Get.find<ChatRepository>();
+
+    // ✅ load state tombol chat/offer
+    // dipanggil sekali saat halaman kebuka
+    if (sellerIdArg.value.isNotEmpty && productId.value.isNotEmpty) {
+      loadChatButtonsState(
+        sellerId: sellerIdArg.value,
+        productId: productId.value,
+      );
+    }
   }
 
   void _readArgs() {
@@ -130,9 +158,125 @@ class ProductDetailController extends GetxController {
     }
   }
 
-  /// ✅ FIX: chat tidak bikin room per produk lagi (1 room per 2 user).
-  /// productId/title/image hanya jadi konteks terakhir yang diupdate.
-  Future<void> openChatFromProduct({
+  // =========================================================
+  // ✅ UI STATE: cek apakah produk ini sudah pernah nego
+  // =========================================================
+  Future<void> loadChatButtonsState({
+    required String sellerId,
+    required String productId,
+  }) async {
+    final uid = SessionController.to.viewerId.value;
+    if (uid.isEmpty) return;
+
+    // ✅ guard biar tidak query berkali-kali saat rebuild
+    final key = '$uid|$sellerId|$productId';
+    if (_lastLoadKey == key) return;
+    _lastLoadKey = key;
+
+    // ✅ pastikan ChatService & ChatRepository tersedia
+    if (!Get.isRegistered<ChatService>()) {
+      Get.lazyPut(() => ChatService(FirebaseFirestore.instance), fenix: true);
+    }
+    if (!Get.isRegistered<ChatRepository>()) {
+      Get.lazyPut(() => ChatRepository(Get.find<ChatService>()), fenix: true);
+    }
+
+    final chatRepo = Get.find<ChatRepository>();
+
+    try {
+      isCheckingThread.value = true;
+
+      debugPrint(
+        '🧭 loadChatButtonsState uid=$uid sellerId=$sellerId productId=$productId',
+      );
+
+      // 1) cek thread offer untuk produk ini (buat tombol "Cek Offer")
+      final tOffer = await chatRepo.findOfferThreadForProduct(
+        uid: uid,
+        peerId: sellerId,
+        productId: productId,
+      );
+      offerThread.value = tOffer;
+
+      debugPrint(
+        '🧾 offerThread=${tOffer?.threadId} '
+        'status=${tOffer?.offer?.status} '
+        'offerPrice=${tOffer?.offer?.offerPrice}',
+      );
+
+      // 2) cek thread terbaru dengan seller (buat tombol "Message")
+      final tSeller = await chatRepo.findLatestThreadWithSeller(
+        uid: uid,
+        peerId: sellerId,
+      );
+      sellerChatThread.value = tSeller;
+
+      debugPrint('💬 sellerChatThread=${tSeller?.threadId}');
+
+      // 3) ✅ cek apakah buyer sudah punya offer "accepted" dengan seller ini
+      //    - kalau iya: produk lain di toko itu tidak boleh nego → jadi "Message"
+      final accepted = await chatRepo.hasAcceptedOfferWithSeller(
+        uid: uid,
+        sellerId: sellerId,
+      );
+      hasAcceptedOfferWithSeller.value = accepted;
+
+      debugPrint('✅ hasAcceptedOfferWithSeller=$accepted');
+    } catch (e, st) {
+      debugPrint('❌ loadChatButtonsState error: $e');
+      debugPrint(st.toString());
+    } finally {
+      isCheckingThread.value = false;
+    }
+  }
+
+  // =========================================================
+  // ✅ Aksi tombol di Product Detail:
+  // - kalau sudah ada offerThread => "Cek Offer" => open chat thread itu
+  // - kalau belum => buka halaman nego (atau open chat)
+  // =========================================================
+  void goToOfferChatOrNego({
+    required String productId,
+    required String sellerId,
+    required String productTitle,
+    required String productImage,
+    required int price,
+  }) {
+    final t = offerThread.value;
+
+    // ✅ sudah pernah nego produk ini → langsung ke chat thread yang sama
+    if (t != null) {
+      Get.toNamed(
+        Routes.chat,
+        arguments: {
+          'threadId': t.threadId,
+          'peerId': sellerId,
+          'productId': productId,
+        },
+      );
+      return;
+    }
+
+    // ✅ belum pernah nego → buka nego page
+    Get.toNamed(
+      Routes.nego,
+      arguments: {
+        'productId': productId,
+        'sellerId': sellerId,
+        'title': productTitle,
+        'imageUrl': productImage,
+        'price': price,
+        'fromChat': false,
+      },
+    );
+  }
+
+  // =========================================================
+  // ✅ Untuk produk lain dari seller yang sama:
+  // tombol jadi "Message" => langsung ke thread terbaru dengan seller
+  // kalau belum ada, buat thread dulu lalu masuk chat
+  // =========================================================
+  Future<void> openMessageSellerFromOtherProduct({
     required String sellerId,
     required String productId,
     required String productTitle,
@@ -145,40 +289,37 @@ class ProductDetailController extends GetxController {
       return;
     }
 
-    if (sellerId.trim().isEmpty) {
-      Get.snackbar('Error', 'sellerId kosong');
-      return;
-    }
-
     if (sellerId == myUid) {
       Get.snackbar('Info', 'Tidak bisa chat dengan diri sendiri');
       return;
     }
 
-    // pastikan dependency ada (kalau belum di-bind oleh route)
-    if (!Get.isRegistered<ChatService>()) {
-      Get.lazyPut(() => ChatService(FirebaseFirestore.instance), fenix: true);
-    }
-    if (!Get.isRegistered<ChatRepository>()) {
-      Get.lazyPut(() => ChatRepository(Get.find<ChatService>()), fenix: true);
+    // ✅ kalau sudah ada thread terbaru dengan seller, langsung pakai itu
+    final tSeller = sellerChatThread.value;
+    if (tSeller != null) {
+      Get.toNamed(
+        Routes.chat,
+        arguments: {
+          'threadId': tSeller.threadId,
+          'peerId': sellerId,
+          'productId': tSeller.productId, // konteks
+        },
+      );
+      return;
     }
 
-    final chatRepo = Get.find<ChatRepository>();
-
-    // data saya
+    // kalau belum ada, create thread via ensureThread
     final me = authC.user.value;
     final myName = (me?.username.isNotEmpty == true)
         ? me!.username
         : (me?.nama ?? 'Me');
     final myPhoto = me?.fotoProfilUrl ?? '';
 
-    // data seller
     final seller = await getSellerUser(sellerId);
     final sellerName = (seller['username'] ?? seller['nama'] ?? 'Seller')
         .toString();
     final sellerPhoto = (seller['foto_profil_url'] ?? '').toString();
 
-    // ✅ penting: threadId didapat dari repo (1 room per buyer-seller)
     final threadId = await chatRepo.ensureThread(
       myUid: myUid,
       peerId: sellerId,
@@ -191,14 +332,32 @@ class ProductDetailController extends GetxController {
       peerPhoto: sellerPhoto,
     );
 
-    // buka chat
+    // refresh cache state (optional)
+    await loadChatButtonsState(sellerId: sellerId, productId: productId);
+
     Get.toNamed(
       Routes.chat,
       arguments: {
         'threadId': threadId,
         'peerId': sellerId,
-        'productId': productId, // ini boleh tetap dikirim sebagai konteks UI
+        'productId': productId,
       },
+    );
+  }
+
+  /// (fungsi lama kamu) tetap boleh dipakai kalau mau
+  Future<void> openChatFromProduct({
+    required String sellerId,
+    required String productId,
+    required String productTitle,
+    required String productImage,
+  }) async {
+    // biar konsisten, arahkan ke openMessageSellerFromOtherProduct
+    await openMessageSellerFromOtherProduct(
+      sellerId: sellerId,
+      productId: productId,
+      productTitle: productTitle,
+      productImage: productImage,
     );
   }
 }

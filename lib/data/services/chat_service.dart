@@ -37,6 +37,36 @@ class ChatService {
     ).orderBy('createdAtClient', descending: false).snapshots();
   }
 
+  Future<QuerySnapshot<Map<String, dynamic>>> findThreadsByPeerAndProduct({
+    required String uid,
+    required String peerId,
+    required String productId,
+  }) {
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('inbox')
+        .where('peerId', isEqualTo: peerId)
+        .where('productId', isEqualTo: productId)
+        .orderBy('updatedAt', descending: true)
+        .limit(1)
+        .get();
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> findLatestThreadByPeer({
+    required String uid,
+    required String peerId,
+  }) {
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('inbox')
+        .where('peerId', isEqualTo: peerId)
+        .orderBy('updatedAt', descending: true)
+        .limit(1)
+        .get();
+  }
+
   // =====================================================
   // ✅ ENSURE THREAD META (wajib set participants di dua sisi)
   // =====================================================
@@ -310,41 +340,45 @@ class ChatService {
   }
 
   // =====================================================
+
   Future<void> updateOfferStatus({
     required String buyerId,
     required String sellerId,
     required String threadId,
     required List<String> participants,
-    required String status, // 'accepted' | 'rejected'
+    required String status, // accepted | rejected
   }) async {
     final now = FieldValue.serverTimestamp();
 
     final buyerThread = threadRef(uid: buyerId, threadId: threadId);
     final sellerThread = threadRef(uid: sellerId, threadId: threadId);
 
+    // ✅ PATCH LENGKAP (participants + offer object lengkap)
     final patch = <String, dynamic>{
       'participants': participants,
+      'buyerId': buyerId,
+      'sellerId': sellerId,
+
       'offer': {
         'buyerId': buyerId,
         'sellerId': sellerId,
         'status': status,
         'updatedAt': now,
       },
+
       'updatedAt': now,
       'lastType': 'offer',
       'lastMessage': status == 'accepted' ? 'Offer diterima' : 'Offer ditolak',
     };
 
-    final batch = _db.batch();
-
-    batch.set(buyerThread, patch, SetOptions(merge: true));
-    batch.set(sellerThread, patch, SetOptions(merge: true));
-
     try {
-      await batch.commit();
+      // ✅ JANGAN BATCH dulu, biar ketahuan mana yang ditolak
+      await buyerThread.set(patch, SetOptions(merge: true));
+      await sellerThread.set(patch, SetOptions(merge: true));
+
       debugPrint('✅ updateOfferStatus OK status=$status threadId=$threadId');
     } catch (e, st) {
-      debugPrint('❌ updateOfferStatus ERROR');
+      debugPrint('❌ updateOfferStatus ERROR status=$status');
       debugPrint(e.toString());
       debugPrint(st.toString());
       rethrow;

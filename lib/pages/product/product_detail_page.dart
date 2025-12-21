@@ -73,6 +73,13 @@ class ProductDetailPage extends StatelessWidget {
             ? data['price'] as int
             : int.tryParse('${data['price']}') ?? 0;
 
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          controller.loadChatButtonsState(
+            sellerId: sellerId,
+            productId: productId,
+          );
+        });
+
         return Scaffold(
           backgroundColor: Colors.white,
           body: SafeArea(
@@ -144,13 +151,27 @@ class ProductDetailPage extends StatelessWidget {
 
                             const SizedBox(height: 10),
 
-                            Text(
-                              controller.rp(price),
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
+                            Obx(() {
+                              final t = controller.offerThread.value;
+                              final off = t?.offer;
+
+                              int shownPrice = price;
+
+                              if (off != null &&
+                                  off.status == 'accepted' &&
+                                  off.buyerId == controller.viewerId &&
+                                  off.offerPrice > 0) {
+                                shownPrice = off.offerPrice;
+                              }
+
+                              return Text(
+                                controller.rp(shownPrice),
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              );
+                            }),
 
                             const SizedBox(height: 6),
 
@@ -286,10 +307,18 @@ class ProductDetailPage extends StatelessWidget {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: _BottomBar(
-                    canBuy: controller.canBuy,
-                    canManage: controller.canManage,
-                    onNego: () {
+                  child: Obx(() {
+                    final tOffer =
+                        controller.offerThread.value; // offer khusus produk ini
+                    final tSeller = controller
+                        .sellerChatThread
+                        .value; // thread terbaru dengan seller
+                    final lockedToMessage =
+                        controller.hasAcceptedOfferWithSeller.value;
+
+                    // ===== label + aksi default =====
+                    String negoLabel = 'Nego';
+                    VoidCallback onLeft = () {
                       final cover = images.isNotEmpty ? images.first : '';
 
                       Get.toNamed(
@@ -302,24 +331,74 @@ class ProductDetailPage extends StatelessWidget {
                           'price': price,
                         },
                       );
-                    },
+                    };
 
-                    onBuy: () async {
-                      await controller.buy(
-                        sellerId: sellerId,
-                        productId: productId,
-                      );
-                      Get.toNamed(Routes.cart);
-                    },
-                    onEdit: () => Get.toNamed(
-                      Routes.editProduct,
-                      arguments: {'id': productId, 'seller_id': sellerId},
-                    ),
-                    onManage: () => Get.toNamed(
-                      Routes.manageProduct,
-                      arguments: {'id': productId, 'seller_id': sellerId},
-                    ),
-                  ),
+                    // ✅ PRIORITAS 1: Produk ini sudah ada offer → Cek Offer
+                    if (tOffer != null && tOffer.offer != null) {
+                      negoLabel = 'Cek Offer';
+                      onLeft = () {
+                        Get.toNamed(
+                          Routes.chat,
+                          arguments: {
+                            'threadId': tOffer.threadId,
+                            'peerId': sellerId,
+                            'productId': productId,
+                          },
+                        );
+                      };
+                    }
+                    // ✅ PRIORITAS 2: Sudah accepted dengan seller → Message (produk lain jadi message)
+                    else if (lockedToMessage) {
+                      negoLabel = 'Message';
+                      onLeft = () async {
+                        final cover = images.isNotEmpty ? images.first : '';
+
+                        // kalau sudah ada thread seller, langsung buka
+                        if (tSeller != null) {
+                          Get.toNamed(
+                            Routes.chat,
+                            arguments: {
+                              'threadId': tSeller.threadId,
+                              'peerId': sellerId,
+                              'productId': productId,
+                            },
+                          );
+                          return;
+                        }
+
+                        // kalau belum ada, bikin thread lalu buka
+                        await controller.openChatFromProduct(
+                          sellerId: sellerId,
+                          productId: productId,
+                          productTitle: title,
+                          productImage: cover,
+                        );
+                      };
+                    }
+
+                    return _BottomBar(
+                      canBuy: controller.canBuy,
+                      canManage: controller.canManage,
+                      negoLabel: negoLabel,
+                      onNego: onLeft,
+
+                      onBuy: () async {
+                        await controller.buy(
+                          sellerId: sellerId,
+                          productId: productId,
+                        );
+                        Get.toNamed(Routes.cart);
+                      },
+                      onEdit: () => Get.toNamed(
+                        Routes.editProduct,
+                        arguments: {'id': productId, 'seller_id': sellerId},
+                      ),
+                      onManage: () => Get.toNamed(
+                        Routes.manageProduct,
+                        arguments: {'id': productId, 'seller_id': sellerId},
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
@@ -837,6 +916,8 @@ class _YouMayLike extends StatelessWidget {
 class _BottomBar extends StatelessWidget {
   final bool canBuy;
   final bool canManage;
+
+  final String negoLabel;
   final VoidCallback onNego;
   final VoidCallback onBuy;
   final VoidCallback onEdit;
@@ -845,6 +926,7 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.canBuy,
     required this.canManage,
+    required this.negoLabel,
     required this.onNego,
     required this.onBuy,
     required this.onEdit,
@@ -875,9 +957,9 @@ class _BottomBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Nego',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                  child: Text(
+                    negoLabel, // ✅ pakai label dinamis
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
