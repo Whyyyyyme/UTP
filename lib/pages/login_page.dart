@@ -38,7 +38,7 @@ class LoginPage extends StatelessWidget {
               // Background image
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/baground6.jpg', // ganti sesuai file kamu
+                  'assets/images/baground1.jpg', // ganti sesuai file kamu
                   fit: BoxFit.cover,
                 ),
               ),
@@ -196,20 +196,6 @@ class LoginPage extends StatelessWidget {
 
                           SizedBox(height: 14 * scale),
 
-                          // Register nanti
-                          GestureDetector(
-                            onTap: () => _snack("Guest mode belum diatur"),
-                            child: Text(
-                              "Register nanti",
-                              style: TextStyle(
-                                color: Colors.white,
-                                decoration: TextDecoration.underline,
-                                fontSize: 14 * scale,
-                              ),
-                            ),
-                          ),
-
-                          const Spacer(),
                         ],
                       ),
                     ),

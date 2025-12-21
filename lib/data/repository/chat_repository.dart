@@ -32,11 +32,13 @@ class ChatRepository {
   }
 
   // ========== ENSURE THREAD ==========
+  /// ✅ 1 room untuk 1 pasangan user (tidak tergantung produk).
+  /// productId/title/image hanya jadi "konteks terakhir".
   Future<String> ensureThread({
     required String myUid,
     required String peerId,
-    required String productId,
 
+    required String productId,
     required String productTitle,
     required String productImage,
 
@@ -45,6 +47,7 @@ class ChatRepository {
     required String peerName,
     required String peerPhoto,
   }) async {
+    // ✅ selalu DM id (buildThreadId kamu sudah diubah jadi dm_)
     final threadId = buildThreadId(
       uidA: myUid,
       uidB: peerId,
@@ -57,7 +60,7 @@ class ChatRepository {
       myUid: myUid,
       peerId: peerId,
       threadId: threadId,
-      participants: participants, // ✅ penting
+      participants: participants,
 
       peerName: peerName,
       peerPhoto: peerPhoto,
@@ -92,6 +95,7 @@ class ChatRepository {
       peerId: peerId,
       threadId: threadId,
       text: text,
+      // participants: participants,
     );
   }
 
@@ -109,7 +113,7 @@ class ChatRepository {
       buyerId: buyerId,
       sellerId: sellerId,
       threadId: threadId,
-      participants: participants, // ✅ penting
+      participants: participants,
       originalPrice: originalPrice,
       offerPrice: offerPrice,
       status: 'pending',
@@ -119,7 +123,7 @@ class ChatRepository {
       buyerId: buyerId,
       sellerId: sellerId,
       threadId: threadId,
-      participants: participants, // ✅ penting
+      participants: participants,
       text: 'Offer baru dikirim.',
       senderId: buyerId,
     );
@@ -136,7 +140,7 @@ class ChatRepository {
       buyerId: buyerId,
       sellerId: sellerId,
       threadId: threadId,
-      participants: participants, // ✅ penting
+      participants: participants,
       status: 'accepted',
     );
 
@@ -144,7 +148,7 @@ class ChatRepository {
       buyerId: buyerId,
       sellerId: sellerId,
       threadId: threadId,
-      participants: participants, // ✅ penting
+      participants: participants,
       text: 'Seller menerima offer.',
       senderId: sellerId,
     );
@@ -161,7 +165,7 @@ class ChatRepository {
       buyerId: buyerId,
       sellerId: sellerId,
       threadId: threadId,
-      participants: participants, // ✅ penting
+      participants: participants,
       status: 'rejected',
     );
 
@@ -169,13 +173,13 @@ class ChatRepository {
       buyerId: buyerId,
       sellerId: sellerId,
       threadId: threadId,
-      participants: participants, // ✅ penting
+      participants: participants,
       text: 'Seller menolak offer.',
       senderId: sellerId,
     );
   }
 
-  // ========== HELPER (opsional) ==========
+  // ========== HELPER ==========
   Future<DocumentSnapshot<Map<String, dynamic>>> getThreadDoc({
     required String uid,
     required String threadId,
