@@ -64,14 +64,42 @@ class ChatPage extends StatelessWidget {
             Obx(() {
               if (!c.showOfferBanner) return const SizedBox.shrink();
 
+              final t = c.thread.value;
+              final me = c.me;
+
+              final isSeller = (t?.sellerId ?? '') == me;
+
+              final status =
+                  c.offerStatus; // 'pending' | 'accepted' | 'rejected'
+
+              final showBuyNow = (status == 'accepted') && !isSeller;
+              debugPrint(
+                '🧾 OFFER UI DEBUG => '
+                'me=${c.me}, '
+                'status=${c.offerStatus}, '
+                'isSeller=${c.isSeller}, '
+                'showActions=${c.showOfferActions}, '
+                'sellerIdOffer=${c.thread.value?.offer?.sellerId}, '
+                'buyerIdOffer=${c.thread.value?.offer?.buyerId}',
+              );
+
               return OfferBanner(
                 title: c.offerBannerTitle,
                 subtitle: c.offerBannerSubtitle,
                 offerPriceText: c.rp(c.offerPrice),
                 originalPriceText: c.rp(c.originalPrice),
+                imageUrl: (t?.productImage ?? '').toString(),
+
+                status: c.offerStatus,
+                isSeller: c.isSeller,
                 showActions: c.showOfferActions,
                 onReject: c.showOfferActions ? c.rejectOffer : null,
                 onAccept: c.showOfferActions ? c.acceptOffer : null,
+
+                showBuyNow: showBuyNow,
+                onBuyNow: showBuyNow
+                    ? c.buyNow
+                    : null, // bikin fungsi buyNow di controller
               );
             }),
 
@@ -222,10 +250,17 @@ class OfferBanner extends StatelessWidget {
   final String subtitle;
   final String offerPriceText;
   final String originalPriceText;
+  final String imageUrl;
+
+  final String status; // 'pending'|'accepted'|'rejected'
+  final bool isSeller;
 
   final bool showActions;
   final Future<void> Function()? onReject;
   final Future<void> Function()? onAccept;
+
+  final bool showBuyNow;
+  final VoidCallback? onBuyNow;
 
   const OfferBanner({
     super.key,
@@ -233,13 +268,27 @@ class OfferBanner extends StatelessWidget {
     required this.subtitle,
     required this.offerPriceText,
     required this.originalPriceText,
+    required this.imageUrl,
+    required this.status,
+    required this.isSeller,
     required this.showActions,
     required this.onReject,
     required this.onAccept,
+    required this.showBuyNow,
+    required this.onBuyNow,
   });
 
   @override
   Widget build(BuildContext context) {
+    final pending = status == 'pending';
+    final accepted = status == 'accepted';
+    final rejected = status == 'rejected';
+
+    // DEBUG biar kita yakin build ini jalan
+    debugPrint(
+      '🧱 OfferBanner.build => status=$status isSeller=$isSeller showActions=$showActions',
+    );
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(0, 0, 0, 6),
@@ -254,32 +303,80 @@ class OfferBanner extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text(subtitle, style: TextStyle(color: Colors.grey.shade700)),
-          const SizedBox(height: 10),
-
+          // ========== TOP ROW ==========
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                offerPriceText,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Text(
+                          offerPriceText,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          originalPriceText,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                        if (accepted || rejected) ...[
+                          const SizedBox(width: 10),
+                          _StatusChip(accepted: accepted, rejected: rejected),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 10),
-              Text(
-                originalPriceText,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  decoration: TextDecoration.lineThrough,
-                ),
+              const SizedBox(width: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: imageUrl.isEmpty
+                    ? Container(
+                        width: 54,
+                        height: 54,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.image_not_supported),
+                      )
+                    : Image.network(
+                        imageUrl,
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 54,
+                          height: 54,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.broken_image),
+                        ),
+                      ),
               ),
             ],
           ),
 
-          if (showActions) ...[
+          // ========== ACTIONS (SELLER + PENDING) ==========
+          // NOTE: aku sengaja tidak mengandalkan showActions saja,
+          // biar tombol pasti muncul kalau seller & pending.
+          if (pending && isSeller) ...[
             const SizedBox(height: 12),
             Row(
               children: [
@@ -305,6 +402,56 @@ class OfferBanner extends StatelessWidget {
               ],
             ),
           ],
+
+          // ========== CTA BUY NOW (BUYER + ACCEPTED) ==========
+          if (accepted && showBuyNow) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: onBuyNow,
+                child: const Text(
+                  'Beli sekarang',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final bool accepted;
+  final bool rejected;
+
+  const _StatusChip({required this.accepted, required this.rejected});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = accepted ? 'Diterima' : 'Ditolak';
+    final icon = accepted ? Icons.check : Icons.close;
+    final bg = accepted ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
+    final fg = accepted ? const Color(0xFF2E7D32) : const Color(0xFFC62828);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: fg),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(fontWeight: FontWeight.w700, color: fg),
+          ),
         ],
       ),
     );

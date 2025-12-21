@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:prelovedly/data/repository/chat_repository.dart';
+import 'package:prelovedly/data/services/chat_service.dart';
 import 'package:prelovedly/view_model/session_controller.dart';
 import 'package:flutter/services.dart';
 
@@ -124,12 +127,13 @@ class NegoController extends GetxController {
         sellerPhoto: sellerMeta.photoUrl,
       );
 
-      // 3️⃣ KIRIM OFFER (ini nulis ke chat + inbox)
-      await repo.sendOffer(
-        threadId: threadId,
-        productId: productId,
+      // 3️⃣ KIRIM OFFER via ChatRepository (SINGLE SOURCE OF TRUTH)
+      final chatRepo = ChatRepository(ChatService(FirebaseFirestore.instance));
+
+      await chatRepo.sendOffer(
         buyerId: buyerId,
         sellerId: sellerId,
+        threadId: threadId,
         originalPrice: originalPrice,
         offerPrice: offer,
       );

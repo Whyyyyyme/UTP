@@ -8,6 +8,7 @@ class ChatThreadModel {
   final String peerId;
   final String peerName;
   final String peerPhoto;
+  final String sellerId;
 
   // konteks produk
   final String productId;
@@ -27,6 +28,7 @@ class ChatThreadModel {
     required this.peerId,
     required this.peerName,
     required this.peerPhoto,
+    required this.sellerId,
     required this.productId,
     required this.productTitle,
     required this.productImage,
@@ -43,6 +45,7 @@ class ChatThreadModel {
       peerId: (map['peerId'] ?? '').toString(),
       peerName: (map['peerName'] ?? 'user').toString(),
       peerPhoto: (map['peerPhoto'] ?? '').toString(),
+      sellerId: (map['sellerId'] ?? '').toString(),
       productId: (map['productId'] ?? '').toString(),
       productTitle: (map['productTitle'] ?? '').toString(),
       productImage: (map['productImage'] ?? '').toString(),

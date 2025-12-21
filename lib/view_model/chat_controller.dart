@@ -39,6 +39,9 @@ class ChatController extends GetxController {
     threadId = (raw['threadId'] ?? '').toString();
     peerId = (raw['peerId'] ?? '').toString();
     productId = (raw['productId'] ?? '').toString();
+    debugPrint(
+      '🧵 ChatController open threadId=$threadId me=$me peerId=$peerId productId=$productId',
+    );
 
     _bindStreams();
   }
@@ -85,8 +88,16 @@ class ChatController extends GetxController {
   // OFFER: helpers untuk 3 versi tampilan
   // =========================================================
   bool get hasOffer => thread.value?.offer != null;
-  String get offerStatus => thread.value?.offer?.status ?? '';
+
+  // status default = 'pending' biar aman
+  String get offerStatus => (thread.value?.offer?.status ?? 'pending')
+      .toString()
+      .toLowerCase()
+      .trim();
+
   bool get isOfferPending => offerStatus == 'pending';
+  bool get isOfferAccepted => offerStatus == 'accepted';
+  bool get isOfferRejected => offerStatus == 'rejected';
 
   bool get isSeller {
     final off = thread.value?.offer;
@@ -106,9 +117,21 @@ class ChatController extends GetxController {
   /// Tombol Terima/Tolak hanya untuk seller saat pending
   bool get showOfferActions => hasOffer && isOfferPending && isSeller;
 
+  /// ✅ CTA "Beli sekarang" hanya untuk buyer saat offer diterima
+  bool get showBuyNow => hasOffer && isOfferAccepted && isBuyer;
+
   String get offerBannerTitle {
     if (!hasOffer) return '';
+
+    // pending
     if (isOfferPending) return isSeller ? 'Offer baru' : 'Offer berjalan';
+
+    // accepted
+    if (isOfferAccepted) return isSeller ? 'Offer diterima' : 'Offer diterima';
+
+    // rejected
+    if (isOfferRejected) return isSeller ? 'Offer ditolak' : 'Offer ditolak';
+
     return 'Status offer';
   }
 
@@ -116,18 +139,45 @@ class ChatController extends GetxController {
     final off = thread.value?.offer;
     if (off == null) return '';
 
-    if (off.status == 'pending') {
+    if (isOfferPending) {
       return isSeller
           ? 'Buyer mengirim offer, pilih Terima/Tolak.'
           : 'Kamu sudah kirim offer, tunggu respon.';
     }
-    if (off.status == 'accepted') return 'Offer diterima.';
-    if (off.status == 'rejected') return 'Offer ditolak.';
+
+    if (isOfferAccepted) {
+      // ✅ sesuai screenshot: buyer diarahkan beli
+      return isBuyer
+          ? 'Langsung beli barangnya!'
+          : 'Kamu sudah menerima offer.';
+    }
+
+    if (isOfferRejected) {
+      return isBuyer ? 'Offer kamu ditolak.' : 'Kamu menolak offer.';
+    }
+
     return 'Offer diperbarui.';
   }
 
   int get offerPrice => thread.value?.offer?.offerPrice ?? 0;
   int get originalPrice => thread.value?.offer?.originalPrice ?? 0;
+
+  // =========================================================
+  // ACTION: buy now (buyer setelah offer accepted)
+  // =========================================================
+  void buyNow() {
+    final t = thread.value;
+    if (t == null) return;
+
+    if (!showBuyNow) {
+      Get.snackbar('Info', 'Belum bisa beli sekarang');
+      return;
+    }
+
+    // TODO: GANTI route sesuai app kamu
+    // Contoh: buka detail produk
+    Get.toNamed('/product-detail', arguments: {'productId': t.productId});
+  }
 
   // =========================================================
   // ACTION: send text

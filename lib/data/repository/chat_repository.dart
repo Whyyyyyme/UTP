@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 import '../../models/chat_message_model.dart';
 import '../../models/chat_thread_model.dart';
@@ -136,6 +137,14 @@ class ChatRepository {
   }) async {
     final participants = <String>[buyerId, sellerId];
 
+    debugPrint(
+      '🧩 ChatRepository acceptOffer using service=${_service.runtimeType}',
+    );
+    debugPrint(
+      '✅ acceptOffer threadId=$threadId buyerId=$buyerId sellerId=$sellerId',
+    );
+
+    // ✅ INI YANG BENAR: update nested offer.status pakai ChatService
     await _service.updateOfferStatus(
       buyerId: buyerId,
       sellerId: sellerId,

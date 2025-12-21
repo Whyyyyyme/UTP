@@ -5,6 +5,8 @@ class ChatService {
   ChatService(this._db);
   final FirebaseFirestore _db;
 
+  FirebaseFirestore get db => _db;
+
   // ====== PATHS ======
   DocumentReference<Map<String, dynamic>> threadRef({
     required String uid,
@@ -195,14 +197,26 @@ class ChatService {
     required String buyerId,
     required String sellerId,
     required String threadId,
-    required List<String> participants, // ✅ baru
+    required List<String> participants,
     required String text,
-    required String senderId,
+    required String senderId, // harus = request.auth.uid
   }) async {
     final nowServer = FieldValue.serverTimestamp();
     final nowClient = Timestamp.now();
 
-    // update thread meta dulu + participants
+    debugPrint('🟨 sendSystemMessage START text="$text" senderId=$senderId');
+
+    // ✅ pastikan thread dua sisi sudah punya participants dulu (biar rules inboxParticipant lulus)
+    await ensureThreadParticipants(
+      myUid: buyerId,
+      peerId: sellerId,
+      threadId: threadId,
+    );
+
+    final buyerDoc = threadRef(uid: buyerId, threadId: threadId);
+    final sellerDoc = threadRef(uid: sellerId, threadId: threadId);
+
+    // meta
     final buyerMeta = {
       'participants': participants,
       'peerId': sellerId,
@@ -219,26 +233,36 @@ class ChatService {
       'updatedAt': nowServer,
     };
 
-    await threadRef(
-      uid: buyerId,
-      threadId: threadId,
-    ).set(buyerMeta, SetOptions(merge: true));
-    await threadRef(
-      uid: sellerId,
-      threadId: threadId,
-    ).set(sellerMeta, SetOptions(merge: true));
-
-    // message
+    // message (pakai doc() supaya bisa dibatch)
     final msg = {
       'type': 'system',
       'text': text,
-      'senderId': senderId,
+      'senderId':
+          senderId, // ✅ wajib sama dengan auth.uid agar rules create lulus
       'createdAt': nowServer,
       'createdAtClient': nowClient,
     };
 
-    await messagesRef(uid: buyerId, threadId: threadId).add(msg);
-    await messagesRef(uid: sellerId, threadId: threadId).add(msg);
+    final buyerMsgDoc = messagesRef(uid: buyerId, threadId: threadId).doc();
+    final sellerMsgDoc = messagesRef(uid: sellerId, threadId: threadId).doc();
+
+    final batch = _db.batch();
+
+    batch.set(buyerDoc, buyerMeta, SetOptions(merge: true));
+    batch.set(sellerDoc, sellerMeta, SetOptions(merge: true));
+
+    batch.set(buyerMsgDoc, msg);
+    batch.set(sellerMsgDoc, msg);
+
+    try {
+      await batch.commit();
+      debugPrint('✅ sendSystemMessage COMMIT OK');
+    } catch (e, st) {
+      debugPrint('❌ sendSystemMessage ERROR');
+      debugPrint(e.toString());
+      debugPrint(st.toString());
+      rethrow;
+    }
   }
 
   // =====================================================
@@ -251,68 +275,80 @@ class ChatService {
     required List<String> participants,
     required int originalPrice,
     required int offerPrice,
-    required String status,
+    required String status, // 'pending'
   }) async {
     final now = FieldValue.serverTimestamp();
 
-    final offerMap = {
-      'buyerId': buyerId,
-      'sellerId': sellerId,
-      'originalPrice': originalPrice,
-      'offerPrice': offerPrice,
-      'status': status,
-    };
+    final buyerThread = threadRef(uid: buyerId, threadId: threadId);
+    final sellerThread = threadRef(uid: sellerId, threadId: threadId);
 
-    final patch = {
-      'participants': [buyerId, sellerId],
-      'offer': offerMap,
-      'lastType': 'offer',
-      'lastMessage': status == 'pending'
-          ? 'Offer baru'
-          : status == 'accepted'
-          ? 'Offer diterima'
-          : 'Offer ditolak',
-      'updatedAt': now,
-    };
+    final batch = _db.batch();
 
-    await threadRef(
-      uid: buyerId,
-      threadId: threadId,
-    ).set(patch, SetOptions(merge: true));
-    await threadRef(
-      uid: sellerId,
-      threadId: threadId,
-    ).set(patch, SetOptions(merge: true));
+    // ✅ tulis offer lengkap (dua sisi)
+    for (final ref in [buyerThread, sellerThread]) {
+      batch.set(ref, {
+        'participants': participants,
+        'buyerId': buyerId, // optional (biar gampang cek)
+        'sellerId': sellerId, // optional
+        // ✅ OFFER OBJECT
+        'offer': {
+          'status': status,
+          'buyerId': buyerId,
+          'sellerId': sellerId,
+          'offerPrice': offerPrice,
+          'originalPrice': originalPrice,
+          'updatedAt': now,
+        },
+
+        'updatedAt': now,
+        'lastType': 'offer',
+        'lastMessage': status == 'pending' ? 'Offer dikirim' : 'Offer update',
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
   }
 
-  // =====================================================
-  // ✅ UPDATE OFFER STATUS (participants juga wajib)
   // =====================================================
   Future<void> updateOfferStatus({
     required String buyerId,
     required String sellerId,
     required String threadId,
-    required List<String> participants, // ✅ baru
-    required String status,
+    required List<String> participants,
+    required String status, // 'accepted' | 'rejected'
   }) async {
     final now = FieldValue.serverTimestamp();
 
-    final patch = {
-      'participants': participants, // ✅
-      'offer.status': status,
+    final buyerThread = threadRef(uid: buyerId, threadId: threadId);
+    final sellerThread = threadRef(uid: sellerId, threadId: threadId);
+
+    final patch = <String, dynamic>{
+      'participants': participants,
+      'offer': {
+        'buyerId': buyerId,
+        'sellerId': sellerId,
+        'status': status,
+        'updatedAt': now,
+      },
+      'updatedAt': now,
       'lastType': 'offer',
       'lastMessage': status == 'accepted' ? 'Offer diterima' : 'Offer ditolak',
-      'updatedAt': now,
     };
 
-    await threadRef(
-      uid: buyerId,
-      threadId: threadId,
-    ).set(patch, SetOptions(merge: true));
-    await threadRef(
-      uid: sellerId,
-      threadId: threadId,
-    ).set(patch, SetOptions(merge: true));
+    final batch = _db.batch();
+
+    batch.set(buyerThread, patch, SetOptions(merge: true));
+    batch.set(sellerThread, patch, SetOptions(merge: true));
+
+    try {
+      await batch.commit();
+      debugPrint('✅ updateOfferStatus OK status=$status threadId=$threadId');
+    } catch (e, st) {
+      debugPrint('❌ updateOfferStatus ERROR');
+      debugPrint(e.toString());
+      debugPrint(st.toString());
+      rethrow;
+    }
   }
 
   Future<void> upsertThreadMeta({

@@ -23,7 +23,7 @@ class OfferModel {
       sellerId: (map['sellerId'] ?? '').toString(),
       originalPrice: _toInt(map['originalPrice']),
       offerPrice: _toInt(map['offerPrice']),
-      status: (map['status'] ?? 'pending').toString(),
+      status: (map['status'] ?? 'pending').toString().toLowerCase().trim(),
     );
   }
 

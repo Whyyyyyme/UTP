@@ -94,7 +94,7 @@ class NegoRepository {
     return threadId;
   }
 
-  /// ✅ simpan offer ke thread meta + system message
+  /// TIDAK DIGUNAKAN
   Future<void> sendOffer({
     required String threadId,
     required String productId,
