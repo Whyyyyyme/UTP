@@ -553,16 +553,6 @@ class AppPages {
       }),
     ),
 
-    GetPage(
-      name: Routes.sellAddressIntro,
-      page: () => const SellAddressIntroPage(),
-      binding: BindingsBuilder(() {
-        ensureGlobals();
-        _ensureSell();
-        _ensureAddress();
-      }),
-    ),
-
     // Pastikan Routes.jualPage ada di app_routes.dart
     GetPage(
       name: Routes.sellProduct,

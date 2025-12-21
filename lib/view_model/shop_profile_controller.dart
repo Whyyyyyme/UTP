@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:prelovedly/data/repository/chat_repository.dart';
 import 'package:prelovedly/models/product_model.dart';
@@ -75,10 +74,7 @@ class ShopProfileController extends GetxController {
               .trim();
     }
 
-    if (sid.isEmpty) {
-      // kalau masih kosong, jangan set apa-apa
-      return;
-    }
+    if (sid.isEmpty) return;
 
     targetUserId.value = sid;
   }
@@ -96,9 +92,8 @@ class ShopProfileController extends GetxController {
     targetUserId.value = t.isEmpty ? fallback : t;
   }
 
-  // ===== streams untuk view =====
+  // ===== streams =====
   Stream<Map<String, dynamic>?> targetUserStream() {
-    // kalau profil sendiri tetap boleh stream, tapi view bisa pakai authC.user juga
     return repo.userByUidStream(targetUserId.value);
   }
 
@@ -107,8 +102,9 @@ class ShopProfileController extends GetxController {
   }
 
   Stream<bool> isFollowingStream() {
-    if (viewerId.isEmpty || targetUserId.value.isEmpty)
+    if (viewerId.isEmpty || targetUserId.value.isEmpty) {
       return Stream.value(false);
+    }
     return followC.isFollowingStream(
       viewerId: viewerId,
       targetUserId: targetUserId.value,
@@ -139,7 +135,6 @@ class ShopProfileController extends GetxController {
     if (p.isDraft) {
       if (!isMe) return;
 
-      // SellController harus sudah di-register (binding _ensureSell)
       final sellC = Get.find<SellController>();
       await sellC.loadDraft(p.id);
 
@@ -167,6 +162,8 @@ class ShopProfileController extends GetxController {
     );
   }
 
+  /// ✅ FIX: cukup 1x ensureThread, jangan pakai threadId manual.
+  /// Di Shop Profile gak ada produk -> pakai productId: 'general'
   Future<void> openChatWithSeller({
     required String sellerId,
     required String sellerName,
@@ -179,35 +176,33 @@ class ShopProfileController extends GetxController {
       return;
     }
 
-    if (sellerId.trim().isEmpty) {
+    final sid = sellerId.trim();
+    if (sid.isEmpty) {
       Get.snackbar('Error', 'sellerId kosong');
       return;
     }
 
-    if (sellerId == myUid) {
+    if (sid == myUid) {
       Get.snackbar('Info', 'Tidak bisa chat dengan diri sendiri');
       return;
     }
 
     try {
-      final db = FirebaseFirestore.instance;
-
-      // ambil data saya
-      final myDoc = await db.collection('users').doc(myUid).get();
-      final my = myDoc.data() ?? {};
-
-      final myName = (my['username'] ?? my['nama'] ?? my['name'] ?? 'user')
-          .toString();
-      final myPhoto = (my['foto_profil_url'] ?? my['photoUrl'] ?? '')
-          .toString();
+      // ambil data saya dari AuthController (lebih konsisten)
+      final me = authC.user.value;
+      final myName = (me?.username.isNotEmpty == true)
+          ? me!.username
+          : (me?.nama ?? 'Me');
+      final myPhoto = me?.fotoProfilUrl ?? '';
 
       const productId = 'general';
 
       final chatRepo = Get.find<ChatRepository>();
 
+      // ✅ threadId didapat dari repo (format 1 room per 2 user)
       final threadId = await chatRepo.ensureThread(
         myUid: myUid,
-        peerId: sellerId,
+        peerId: sid,
         productId: productId,
         productTitle: '',
         productImage: '',
@@ -221,7 +216,7 @@ class ShopProfileController extends GetxController {
         Routes.chat,
         arguments: {
           'threadId': threadId,
-          'peerId': sellerId,
+          'peerId': sid,
           'productId': productId,
         },
       );

@@ -2,10 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+
 import 'package:prelovedly/data/repository/chat_repository.dart';
 import 'package:prelovedly/data/services/chat_service.dart';
 import 'package:prelovedly/routes/app_routes.dart';
-import 'package:prelovedly/utils/chat_thread_util.dart';
 import 'package:prelovedly/view_model/auth_controller.dart';
 
 import 'package:prelovedly/view_model/cart_controller.dart';
@@ -16,6 +16,7 @@ import '../../data/repository/product_repository.dart';
 class ProductDetailController extends GetxController {
   final AuthController authC = Get.find<AuthController>();
   final ProductRepository _repo;
+
   ProductDetailController({ProductRepository? repo})
     : _repo = repo ?? ProductRepository();
 
@@ -37,9 +38,7 @@ class ProductDetailController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-
     likeC = Get.find<LikeController>();
-
     _readArgs();
   }
 
@@ -50,7 +49,7 @@ class ProductDetailController extends GetxController {
     isMe.value = (args['is_me'] == true);
   }
 
-  /// ✅ streams sudah sesuai repository versi baru
+  // ===== STREAMS =====
   Stream<Map<String, dynamic>?> productStream() {
     return _repo.productStream(productId.value);
   }
@@ -70,14 +69,13 @@ class ProductDetailController extends GetxController {
     return _repo.getUserByUid(sellerId);
   }
 
-  // formatting helper
+  // ===== HELPERS =====
   String rp(dynamic value) {
     final v = value is int ? value : int.tryParse('$value') ?? 0;
     final f = NumberFormat.decimalPattern('id_ID').format(v);
     return 'Rp $f';
   }
 
-  /// ✅ versi baru: terima dynamic (Timestamp / DateTime / String)
   String timeAgo(dynamic ts) {
     final dt = _toDateTime(ts);
     if (dt == null) return '-';
@@ -91,27 +89,21 @@ class ProductDetailController extends GetxController {
   DateTime? _toDateTime(dynamic v) {
     if (v == null) return null;
 
-    // kalau Timestamp Firestore (tanpa import cloud_firestore),
-    // biasanya tetap bisa dipanggil toDate() via dynamic
     try {
       final maybe = (v as dynamic);
-      final hasToDate = maybe.toDate != null;
-      if (hasToDate) {
+      if (maybe.toDate != null) {
         final DateTime dt = maybe.toDate();
         return dt;
       }
     } catch (_) {}
 
     if (v is DateTime) return v;
-
-    if (v is String) {
-      return DateTime.tryParse(v);
-    }
+    if (v is String) return DateTime.tryParse(v);
 
     return null;
   }
 
-  // actions
+  // ===== ACTIONS =====
   Future<void> buy({
     required String sellerId,
     required String productId,
@@ -128,7 +120,7 @@ class ProductDetailController extends GetxController {
       return;
     }
 
-    final cartC = Get.find<CartController>(); // sudah global
+    final cartC = Get.find<CartController>();
 
     try {
       await cartC.addToCart(viewerId: uid, productId: productId);
@@ -138,6 +130,8 @@ class ProductDetailController extends GetxController {
     }
   }
 
+  /// ✅ FIX: chat tidak bikin room per produk lagi (1 room per 2 user).
+  /// productId/title/image hanya jadi konteks terakhir yang diupdate.
   Future<void> openChatFromProduct({
     required String sellerId,
     required String productId,
@@ -145,12 +139,23 @@ class ProductDetailController extends GetxController {
     required String productImage,
   }) async {
     final myUid = SessionController.to.viewerId.value;
+
     if (myUid.isEmpty) {
       Get.snackbar('Info', 'Kamu belum login');
       return;
     }
 
-    // pastikan dependency ada (karena biasanya di-bind di route chat)
+    if (sellerId.trim().isEmpty) {
+      Get.snackbar('Error', 'sellerId kosong');
+      return;
+    }
+
+    if (sellerId == myUid) {
+      Get.snackbar('Info', 'Tidak bisa chat dengan diri sendiri');
+      return;
+    }
+
+    // pastikan dependency ada (kalau belum di-bind oleh route)
     if (!Get.isRegistered<ChatService>()) {
       Get.lazyPut(() => ChatService(FirebaseFirestore.instance), fenix: true);
     }
@@ -158,28 +163,23 @@ class ProductDetailController extends GetxController {
       Get.lazyPut(() => ChatRepository(Get.find<ChatService>()), fenix: true);
     }
 
-    final repo = Get.find<ChatRepository>();
+    final chatRepo = Get.find<ChatRepository>();
 
-    final threadId = buildThreadId(
-      uidA: myUid,
-      uidB: sellerId,
-      productId: productId,
-    );
-
+    // data saya
     final me = authC.user.value;
-    final myName = me?.username.isNotEmpty == true
+    final myName = (me?.username.isNotEmpty == true)
         ? me!.username
         : (me?.nama ?? 'Me');
     final myPhoto = me?.fotoProfilUrl ?? '';
 
-    // ambil seller data via repo/user service (atau minimal kosong)
+    // data seller
     final seller = await getSellerUser(sellerId);
     final sellerName = (seller['username'] ?? seller['nama'] ?? 'Seller')
         .toString();
     final sellerPhoto = (seller['foto_profil_url'] ?? '').toString();
 
-    // ✅ ensure inbox + chat meta
-    await repo.ensureThread(
+    // ✅ penting: threadId didapat dari repo (1 room per buyer-seller)
+    final threadId = await chatRepo.ensureThread(
       myUid: myUid,
       peerId: sellerId,
       productId: productId,
@@ -191,13 +191,13 @@ class ProductDetailController extends GetxController {
       peerPhoto: sellerPhoto,
     );
 
-    // ✅ buka chat
+    // buka chat
     Get.toNamed(
       Routes.chat,
       arguments: {
         'threadId': threadId,
         'peerId': sellerId,
-        'productId': productId,
+        'productId': productId, // ini boleh tetap dikirim sebagai konteks UI
       },
     );
   }
