@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class ChatService {
   ChatService(this._db);
@@ -90,53 +91,101 @@ class ChatService {
   // =====================================================
   // ✅ SEND TEXT (set thread meta dulu + participants, baru add message)
   // =====================================================
+
   Future<void> sendTextMessage({
     required String uid,
     required String peerId,
     required String threadId,
     required String text,
-    required List<String> participants, // ✅ baru
   }) async {
     final nowServer = FieldValue.serverTimestamp();
     final nowClient = Timestamp.now();
 
-    // 1) update thread meta dulu (dua sisi) + participants
-    final myMeta = {
-      'participants': participants,
-      'peerId': peerId,
-      'lastMessage': text,
-      'lastType': 'text',
-      'updatedAt': nowServer,
-    };
-
-    final peerMeta = {
-      'participants': participants,
-      'peerId': uid,
-      'lastMessage': text,
-      'lastType': 'text',
-      'updatedAt': nowServer,
-    };
-
-    await threadRef(
-      uid: uid,
+    await upsertThreadMeta(
+      ownerUid: uid,
       threadId: threadId,
-    ).set(myMeta, SetOptions(merge: true));
-    await threadRef(
-      uid: peerId,
-      threadId: threadId,
-    ).set(peerMeta, SetOptions(merge: true));
+      data: {
+        'threadId': threadId,
+        'participants': [uid, peerId],
+        'peerId': peerId,
+        'updatedAt': nowServer,
+      },
+    );
 
-    // 2) baru tulis message (dua sisi)
+    await upsertThreadMeta(
+      ownerUid: peerId,
+      threadId: threadId,
+      data: {
+        'threadId': threadId,
+        'participants': [uid, peerId],
+        'peerId': uid,
+        'updatedAt': nowServer,
+      },
+    );
+
+    // 2) SET MESSAGE + META PATCH VIA BATCH
     final msg = {
       'type': 'text',
       'text': text,
-      'senderId': uid, // rules: harus == auth.uid
+      'senderId': uid,
       'createdAt': nowServer,
       'createdAtClient': nowClient,
     };
 
-    await messagesRef(uid: uid, threadId: threadId).add(msg);
-    await messagesRef(uid: peerId, threadId: threadId).add(msg);
+    final myThread = threadRef(uid: uid, threadId: threadId);
+    final peerThread = threadRef(uid: peerId, threadId: threadId);
+
+    final myMsgRef = messagesRef(uid: uid, threadId: threadId).doc();
+    final peerMsgRef = messagesRef(uid: peerId, threadId: threadId).doc();
+
+    final metaPatch = {
+      'lastMessage': text,
+      'lastType': 'text',
+      'updatedAt': nowServer,
+    };
+
+    final batch = _db.batch();
+
+    batch.set(myMsgRef, msg);
+    batch.set(peerMsgRef, msg);
+
+    batch.set(myThread, metaPatch, SetOptions(merge: true));
+    batch.set(peerThread, metaPatch, SetOptions(merge: true));
+
+    try {
+      await batch.commit();
+    } catch (e, st) {
+      debugPrint(e.toString());
+      debugPrint(st.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> ensureThreadParticipants({
+    required String myUid,
+    required String peerId,
+    required String threadId,
+  }) async {
+    final now = FieldValue.serverTimestamp();
+
+    final myDoc = threadRef(uid: myUid, threadId: threadId);
+    final peerDoc = threadRef(uid: peerId, threadId: threadId);
+
+    final batch = _db.batch();
+
+    batch.set(myDoc, {
+      'participants': [myUid, peerId],
+      'peerId': peerId,
+      'updatedAt': now,
+    }, SetOptions(merge: true));
+
+    batch.set(peerDoc, {
+      'participants': [myUid, peerId],
+      'peerId': myUid,
+      'updatedAt': now,
+    }, SetOptions(merge: true));
+
+    await batch.commit();
   }
 
   // =====================================================
@@ -199,7 +248,7 @@ class ChatService {
     required String buyerId,
     required String sellerId,
     required String threadId,
-    required List<String> participants, // ✅ baru
+    required List<String> participants,
     required int originalPrice,
     required int offerPrice,
     required String status,
@@ -215,7 +264,7 @@ class ChatService {
     };
 
     final patch = {
-      'participants': participants, // ✅
+      'participants': [buyerId, sellerId],
       'offer': offerMap,
       'lastType': 'offer',
       'lastMessage': status == 'pending'
@@ -264,5 +313,24 @@ class ChatService {
       uid: sellerId,
       threadId: threadId,
     ).set(patch, SetOptions(merge: true));
+  }
+
+  Future<void> upsertThreadMeta({
+    required String ownerUid, // uid dokumen inbox yang dituju (bisa peer)
+    required String threadId,
+    required Map<String, dynamic> data,
+  }) async {
+    final ref = threadRef(uid: ownerUid, threadId: threadId);
+
+    try {
+      // ✅ NO GET() → supaya tidak kena rule read owner-only
+      await ref.set(data, SetOptions(merge: true));
+      debugPrint('UPSERT THREAD SUCCESS ownerUid=$ownerUid');
+    } catch (e, st) {
+      debugPrint('UPSERT THREAD FAILED ownerUid=$ownerUid');
+      debugPrint(e.toString());
+      debugPrint(st.toString());
+      rethrow;
+    }
   }
 }

@@ -78,15 +78,20 @@ class ChatRepository {
     required String peerId,
     required String threadId,
     required String text,
-  }) {
-    final participants = <String>[uid, peerId];
+  }) async {
+    // ✅ pastikan thread doc dua sisi punya participants (biar rules lolos)
+    await _service.ensureThreadParticipants(
+      myUid: uid,
+      peerId: peerId,
+      threadId: threadId,
+    );
 
+    // ✅ baru kirim message (service sudah batch write message + meta)
     return _service.sendTextMessage(
       uid: uid,
       peerId: peerId,
       threadId: threadId,
       text: text,
-      participants: participants, // ✅ penting
     );
   }
 

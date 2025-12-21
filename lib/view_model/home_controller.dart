@@ -17,7 +17,7 @@ class HomeController extends GetxController {
   StreamSubscription<int>? _cartCountSub;
   Worker? _viewerWorker;
 
-  String _lastViewerId = ''; // ✅ guard biar gak re-bind terus
+  String _lastViewerId = '';
 
   @override
   void onInit() {
@@ -25,7 +25,6 @@ class HomeController extends GetxController {
 
     cartCount.value = 0;
 
-    // ✅ bind awal
     final initial = SessionController.to.viewerId.value;
     _lastViewerId = initial;
     _bindViewer(initial);

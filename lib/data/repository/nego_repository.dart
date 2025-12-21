@@ -45,9 +45,12 @@ class NegoRepository {
 
     final now = FieldValue.serverTimestamp();
 
+    final participants = <String>[buyerId, sellerId];
+
     // data untuk buyer inbox
     final buyerThreadData = {
       'threadId': threadId,
+      'participants': participants,
       'peerId': sellerId,
       'peerName': sellerName,
       'peerPhoto': sellerPhoto,
@@ -63,6 +66,7 @@ class NegoRepository {
     // data untuk seller inbox
     final sellerThreadData = {
       'threadId': threadId,
+      'participants': participants,
       'peerId': buyerId,
       'peerName': buyerName,
       'peerPhoto': buyerPhoto,
@@ -101,6 +105,9 @@ class NegoRepository {
   }) async {
     final now = FieldValue.serverTimestamp();
 
+    // ✅ WAJIB untuk rules (aman walau doc belum ada / dianggap create)
+    final participants = <String>[buyerId, sellerId];
+
     final offerMap = {
       'buyerId': buyerId,
       'sellerId': sellerId,
@@ -112,6 +119,7 @@ class NegoRepository {
     };
 
     final patch = {
+      'participants': participants, // ✅ tambah biar aman
       'offer': offerMap,
       'lastType': 'offer',
       'lastMessage': 'Offer baru',
