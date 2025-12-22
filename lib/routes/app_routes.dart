@@ -8,7 +8,6 @@ abstract class Routes {
   static const registerName = '/register-name';
   static const registerUsername = '/register-username';
   static const registerPassword = '/register-password';
-  static const adminDashboard = '/admin-dashboard';
 
   // Main Page
   static const home = '/home';
@@ -47,4 +46,11 @@ abstract class Routes {
   static const followersFollowing = '/followers-following';
   static const nego = '/nego';
   static const chat = '/chat';
+
+  // Admin
+  static const adminDashboard = '/admin-dashboard';
+  static const adminUsers = '/admin-users';
+  static const adminProducts = '/admin-products';
+  static const adminReports = '/admin-reports';
+  static const adminSettings = '/admin-settings';
 }

@@ -55,7 +55,23 @@ class AdminDashboardPage extends StatelessWidget {
       elevation: 4,
       child: InkWell(
         onTap: () {
-          Get.snackbar('Info', 'Menu $title akan segera hadir');
+          switch (title) {
+            case 'Kelola User':
+              Get.toNamed(Routes.adminUsers);
+              break;
+            case 'Semua Produk':
+              Get.toNamed(Routes.adminProducts);
+              break;
+            case 'Laporan':
+              Get.toNamed(Routes.adminReports);
+              break;
+            case 'Pengaturan App':
+              Get.toNamed(Routes.adminSettings);
+              break;
+            default:
+              Get.snackbar('Info', 'Menu $title akan segera hadir');
+          }
+
         },
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

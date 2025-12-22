@@ -97,7 +97,13 @@ import 'package:prelovedly/pages/Register_pages/register_nama.dart';
 import 'package:prelovedly/pages/Register_pages/register_username.dart';
 import 'package:prelovedly/pages/Register_pages/register_password.dart';
 
+// Admin Pages
 import 'package:prelovedly/pages/admin_pages/admin_dashboard_page.dart';
+import 'package:prelovedly/pages/admin_pages/admin_users_page.dart';
+import 'package:prelovedly/pages/admin_pages/admin_products_page.dart';
+import 'package:prelovedly/pages/admin_pages/admin_reports_page.dart';
+import 'package:prelovedly/pages/admin_pages/admin_settings_page.dart';
+
 
 class AppPages {
   AppPages._();
@@ -750,6 +756,38 @@ class AppPages {
         _ensureAuth();
       }),
     ),
-    // ... route lain lanjutkan
+    
+        GetPage(
+      name: Routes.adminUsers,
+      page: () => const AdminUsersPage(),
+      binding: BindingsBuilder(() {
+        _ensureAuth();
+      }),
+    ),
+
+    GetPage(
+      name: Routes.adminProducts,
+      page: () => const AdminProductsPage(),
+      binding: BindingsBuilder(() {
+        _ensureAuth();
+      }),
+    ),
+
+    GetPage(
+      name: Routes.adminReports,
+      page: () => const AdminReportsPage(),
+      binding: BindingsBuilder(() {
+        _ensureAuth();
+      }),
+    ),
+
+    GetPage(
+      name: Routes.adminSettings,
+      page: () => const AdminSettingsPage(),
+      binding: BindingsBuilder(() {
+        _ensureAuth();
+      }),
+    ),
+
   ];
 }
