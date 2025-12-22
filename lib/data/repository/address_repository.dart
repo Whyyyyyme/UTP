@@ -26,4 +26,8 @@ class AddressRepository {
   }
 
   String newId(String userId) => _service.newAddressId(userId);
+
+  Future<void> setDefaultAddress(String userId, String addressId) {
+    return _service.setDefaultAddress(userId, addressId);
+  }
 }

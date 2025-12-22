@@ -47,6 +47,10 @@ abstract class Routes {
   static const nego = '/nego';
   static const chat = '/chat';
 
+  static const checkout = '/checkout';
+  static const sellerShipping = '/seller-shipping';
+  static const selectShipping = '/select-shipping';
+
   // Admin
   static const adminDashboard = '/admin-dashboard';
   static const adminUsers = '/admin-users';

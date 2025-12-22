@@ -35,4 +35,30 @@ class AddressService {
   String newAddressId(String userId) {
     return userAddressCol(userId).doc().id;
   }
+
+  Future<void> setDefaultAddress(String userId, String addressId) async {
+    final col = userAddressCol(userId);
+    final now = FieldValue.serverTimestamp();
+
+    final batch = _db.batch();
+
+    // unset semua default
+    final all = await col.get();
+    for (final d in all.docs) {
+      if ((d.data()['is_default'] ?? false) == true) {
+        batch.set(d.reference, {
+          'is_default': false,
+          'updated_at': now,
+        }, SetOptions(merge: true));
+      }
+    }
+
+    // set yang dipilih jadi default
+    batch.set(col.doc(addressId), {
+      'is_default': true,
+      'updated_at': now,
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+  }
 }

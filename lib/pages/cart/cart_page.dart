@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:prelovedly/routes/app_routes.dart';
 
 import 'package:prelovedly/view_model/cart_controller.dart';
 import 'package:prelovedly/view_model/session_controller.dart';
@@ -151,7 +152,7 @@ class _CartPageState extends State<CartPage> {
                   },
 
                   onBuyNow: () {
-                    Get.snackbar('Info', 'Beli sekarang (TODO)');
+                    Get.toNamed(Routes.checkout);
                   },
 
                   onAddMore: () {

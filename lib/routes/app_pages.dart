@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prelovedly/data/repository/cart_repository.dart';
 import 'package:prelovedly/data/repository/chat_repository.dart';
+import 'package:prelovedly/data/repository/checkout_repository.dart';
 import 'package:prelovedly/data/repository/follow_repository.dart';
 import 'package:prelovedly/data/repository/inbox_repository.dart';
 import 'package:prelovedly/data/repository/like_repository.dart';
@@ -10,10 +11,12 @@ import 'package:prelovedly/data/repository/manage_product_repository.dart';
 import 'package:prelovedly/data/repository/nego_repository.dart';
 import 'package:prelovedly/data/repository/product_repository.dart';
 import 'package:prelovedly/data/repository/sell_repository.dart';
+import 'package:prelovedly/data/repository/shipping_repository.dart';
 import 'package:prelovedly/data/repository/shop_profile_repository.dart';
 import 'package:prelovedly/data/repository/user_repository.dart';
 import 'package:prelovedly/data/services/cart_service.dart';
 import 'package:prelovedly/data/services/chat_service.dart';
+import 'package:prelovedly/data/services/checkout_service.dart';
 import 'package:prelovedly/data/services/follow_service.dart';
 import 'package:prelovedly/data/services/inbox_service.dart';
 import 'package:prelovedly/data/services/like_service.dart';
@@ -21,8 +24,11 @@ import 'package:prelovedly/data/services/manage_product_service.dart';
 import 'package:prelovedly/data/services/nego_service.dart';
 import 'package:prelovedly/data/services/product_service.dart';
 import 'package:prelovedly/data/services/sell_service.dart';
-import 'package:prelovedly/data/services/shop_profile.dart';
+import 'package:prelovedly/data/services/shipping_service.dart';
+import 'package:prelovedly/data/services/shop_service.dart';
 import 'package:prelovedly/pages/chat/chat_page.dart';
+import 'package:prelovedly/pages/checkout/checkout_page.dart';
+import 'package:prelovedly/pages/checkout/select_shipping_page.dart';
 import 'package:prelovedly/pages/inbox_page.dart';
 import 'package:prelovedly/pages/product/nego_page.dart';
 import 'package:prelovedly/pages/email_login_page.dart';
@@ -35,7 +41,7 @@ import 'package:prelovedly/pages/profile_pages/edit_profile/edit_username_page.d
 import 'package:prelovedly/pages/profile_pages/edit_profile_page.dart';
 import 'package:prelovedly/pages/profile_pages/followers_page.dart';
 import 'package:prelovedly/pages/profile_pages/manage_product_page.dart';
-import 'package:prelovedly/pages/profile_pages/setting_page.dart';
+import 'package:prelovedly/pages/profile_pages/setting/setting_page.dart';
 import 'package:prelovedly/pages/profile_pages/shop_profile_screen.dart';
 import 'package:prelovedly/pages/sell_pages/atribut_produk/brand_picker_page.dart';
 import 'package:prelovedly/pages/sell_pages/atribut_produk/color_picker_page.dart';
@@ -46,8 +52,10 @@ import 'package:prelovedly/pages/sell_pages/atribut_produk/size_picker_page.dart
 import 'package:prelovedly/pages/sell_pages/edit_draft_page.dart';
 import 'package:prelovedly/pages/sell_pages/sell_page.dart';
 import 'package:prelovedly/pages/sell_pages/style_picker_page.dart';
+import 'package:prelovedly/pages/profile_pages/setting/seller_shipping_page.dart';
 import 'package:prelovedly/view_model/cart_controller.dart';
 import 'package:prelovedly/view_model/chat_controller.dart';
+import 'package:prelovedly/view_model/checkout_controller.dart';
 import 'package:prelovedly/view_model/follow_controller.dart';
 import 'package:prelovedly/view_model/inbox_controller.dart';
 import 'package:prelovedly/view_model/login_controller.dart';
@@ -59,6 +67,7 @@ import 'package:prelovedly/view_model/product/condition_picker_controller.dart';
 import 'package:prelovedly/view_model/product/material_picker_controller.dart';
 import 'package:prelovedly/view_model/product_detail_controller.dart';
 import 'package:prelovedly/view_model/register_controller.dart';
+import 'package:prelovedly/view_model/shipping_controller.dart';
 import 'package:prelovedly/view_model/shop_profile_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
@@ -103,7 +112,6 @@ import 'package:prelovedly/pages/admin_pages/admin_users_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_products_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_reports_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_settings_page.dart';
-
 
 class AppPages {
   AppPages._();
@@ -746,6 +754,70 @@ class AppPages {
       }),
     ),
 
+    GetPage(
+      name: Routes.checkout,
+      page: () => const CheckoutPage(),
+      binding: BindingsBuilder(() {
+        _ensureAddress();
+        Get.lazyPut(
+          () => CheckoutService(FirebaseFirestore.instance),
+          fenix: true,
+        );
+        Get.lazyPut(
+          () => CheckoutRepository(Get.find<CheckoutService>()),
+          fenix: true,
+        );
+        Get.put(
+          CheckoutController(Get.find<CheckoutRepository>()),
+          permanent: false,
+        );
+        Get.lazyPut(() => ShippingService(FirebaseFirestore.instance));
+        Get.lazyPut(() => ShippingRepository(Get.find<ShippingService>()));
+        final args = (Get.arguments is Map) ? (Get.arguments as Map) : {};
+        final sellerId = (args['sellerId'] ?? '').toString();
+        Get.put(
+          ShippingController(
+            Get.find<ShippingRepository>(),
+            sellerId: sellerId,
+          ),
+        );
+      }),
+    ),
+
+    GetPage(
+      name: Routes.sellerShipping,
+      page: () => const SellerShippingPage(),
+      binding: BindingsBuilder(() {
+        final sellerId = AuthController.to.user.value?.id ?? '';
+
+        Get.lazyPut(() => ShippingService(FirebaseFirestore.instance));
+        Get.lazyPut(() => ShippingRepository(Get.find<ShippingService>()));
+        Get.put(
+          ShippingController(
+            Get.find<ShippingRepository>(),
+            sellerId: sellerId,
+          ),
+        );
+      }),
+    ),
+
+    GetPage(
+      name: Routes.selectShipping,
+      page: () => const SelectShippingPage(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut(() => ShippingService(FirebaseFirestore.instance));
+        Get.lazyPut(() => ShippingRepository(Get.find<ShippingService>()));
+        final args = (Get.arguments is Map) ? (Get.arguments as Map) : {};
+        final sellerId = (args['sellerId'] ?? '').toString();
+        Get.put(
+          ShippingController(
+            Get.find<ShippingRepository>(),
+            sellerId: sellerId,
+          ),
+        );
+      }),
+    ),
+
     // ===============
     //      ADMIN
     // ===============
@@ -756,8 +828,8 @@ class AppPages {
         _ensureAuth();
       }),
     ),
-    
-        GetPage(
+
+    GetPage(
       name: Routes.adminUsers,
       page: () => const AdminUsersPage(),
       binding: BindingsBuilder(() {
@@ -788,6 +860,5 @@ class AppPages {
         _ensureAuth();
       }),
     ),
-
   ];
 }

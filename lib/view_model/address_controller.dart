@@ -14,6 +14,7 @@ class AddressController extends GetxController {
 
   final isSaving = false.obs;
   final selectedRegion = ''.obs;
+  final selectedAddress = Rxn<AddressModel>();
 
   String? _uid() => AuthController.to.user.value?.id;
 
@@ -76,6 +77,22 @@ class AddressController extends GetxController {
       return (true, 'Alamat dihapus');
     } catch (_) {
       return (false, 'Gagal menghapus alamat');
+    }
+  }
+
+  Future<void> pickAddress(AddressModel addr) async {
+    selectedAddress.value = addr;
+  }
+
+  Future<(bool ok, String message)> setDefault(AddressModel addr) async {
+    final uid = _uid();
+    if (uid == null) return (false, 'Kamu belum login');
+
+    try {
+      await _repo.setDefaultAddress(uid, addr.id);
+      return (true, 'Default alamat diperbarui');
+    } catch (_) {
+      return (false, 'Gagal set default');
     }
   }
 }

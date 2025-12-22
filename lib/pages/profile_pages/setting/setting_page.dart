@@ -81,11 +81,7 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.local_shipping_outlined,
                 label: 'Kurir pengiriman',
                 onTap: () {
-                  Get.snackbar(
-                    'Kurir pengiriman',
-                    'Fitur ini belum tersedia',
-                    snackPosition: SnackPosition.TOP,
-                  );
+                  Get.toNamed(Routes.sellerShipping);
                 },
               ),
             ],

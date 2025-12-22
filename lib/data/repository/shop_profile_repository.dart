@@ -1,5 +1,5 @@
 import 'package:prelovedly/models/product_model.dart';
-import 'package:prelovedly/data/services/shop_profile.dart';
+import 'package:prelovedly/data/services/shop_service.dart';
 
 class ShopProfileRepository {
   final ShopProfileService _service;
