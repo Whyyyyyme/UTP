@@ -192,24 +192,6 @@ class ProfilePage extends StatelessWidget {
               },
             ),
 
-            // Personalisasi
-            _buildMenuTile(
-              icon: Icons.tune,
-              title: 'Personalisasi',
-              onTap: () {
-                // TODO: halaman personalisasi
-              },
-            ),
-
-            // Share shop
-            _buildMenuTile(
-              icon: Icons.share_outlined,
-              title: 'Share shop',
-              onTap: () {
-                // TODO: logic share toko
-              },
-            ),
-
             // Mode Liburan
             SwitchListTile.adaptive(
               title: const Text('Mode liburan'),
