@@ -101,6 +101,7 @@ import 'package:prelovedly/pages/Register_pages/register_password.dart';
 import 'package:prelovedly/pages/admin_pages/admin_dashboard_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_users_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_products_page.dart';
+import 'package:prelovedly/pages/admin_pages/admin_product_detail_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_reports_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_settings_page.dart';
 
@@ -771,6 +772,11 @@ class AppPages {
       binding: BindingsBuilder(() {
         _ensureAuth();
       }),
+    ),
+
+    GetPage(
+      name: Routes.adminProductDetail,
+      page: () => const AdminProductDetailPage(),
     ),
 
     GetPage(

@@ -51,6 +51,7 @@ abstract class Routes {
   static const adminDashboard = '/admin-dashboard';
   static const adminUsers = '/admin-users';
   static const adminProducts = '/admin-products';
+  static const adminProductDetail = '/admin-product-detail';
   static const adminReports = '/admin-reports';
   static const adminSettings = '/admin-settings';
 }
