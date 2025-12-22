@@ -11,6 +11,19 @@ class AuthService {
 
   final supa.SupabaseClient _supabase = supa.Supabase.instance.client;
 
+  // ✅ helper: default aktif kalau field belum ada
+  Future<bool> _isUserActive(String uid) async {
+    final snap = await _db.collection('users').doc(uid).get();
+    if (!snap.exists) return true;
+
+    final data = snap.data();
+    final isActive = (data?['is_active'] is bool)
+        ? data!['is_active'] as bool
+        : true;
+
+    return isActive;
+  }
+
   Future<fb.User?> signUp({
     required String email,
     required String password,
@@ -46,6 +59,8 @@ class AuthService {
           'no_telp': '',
           'foto_profil_url': '',
           'role': 'pembeli',
+          // ✅ supabase juga kasih default aktif
+          'is_active': true,
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
@@ -75,17 +90,40 @@ class AuthService {
       'no_telp': '',
       'foto_profil_url': '',
       'role': 'pembeli',
+
+      // ✅ ini penting: user baru langsung punya is_active tanpa manual
+      'is_active': true,
+
       'created_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),
     });
   }
 
+  // ✅ signIn otomatis cek is_active
   Future<fb.User?> signIn(String email, String password) async {
     final result = await _auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
-    return result.user;
+
+    final fb.User? signedUser = result.user;
+
+    if (signedUser != null) {
+      final active = await _isUserActive(signedUser.uid);
+
+      if (!active) {
+        // logout paksa
+        await _auth.signOut();
+
+        // lempar error supaya controller mu nangkep via mapper user-disabled
+        throw fb.FirebaseAuthException(
+          code: 'user-disabled',
+          message: 'Akun ini telah dinonaktifkan',
+        );
+      }
+    }
+
+    return signedUser;
   }
 
   Future<void> signOut() async => _auth.signOut();

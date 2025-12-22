@@ -1,3 +1,5 @@
+// lib/view_model/auth_controller.dart
+
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,11 +33,16 @@ class AuthController extends GetxController {
     final currentFirebaseUser = _firebaseAuth.currentUser;
     if (currentFirebaseUser != null) {
       try {
+        // NOTE:
+        // Cek is_active sudah dilakukan di AuthService.signIn().
+        // onReady ini hanya memuat profil bila user masih login.
         final profile = await _authService.getUserProfile(
           currentFirebaseUser.uid,
         );
         user.value = profile;
-      } catch (_) {}
+      } catch (_) {
+        // kalau gagal fetch profile, jangan crash
+      }
     } else {
       user.value = null;
     }
@@ -68,7 +75,10 @@ class AuthController extends GetxController {
       if (firebaseUser != null) {
         user.value = await _authService.getUserProfile(firebaseUser.uid);
         _syncSessionViewer();
-        Get.offAllNamed(Routes.home);
+
+        // ❗Jangan navigate di sini kalau flow kamu diatur dari page/register controller.
+        // Kalau kamu ingin tetap auto-masuk setelah register, uncomment ini:
+        // Get.offAllNamed(Routes.home);
       }
     } on FirebaseAuthException catch (e) {
       errorMessage.value = _firebaseErrorMapper(e.code);
@@ -86,12 +96,16 @@ class AuthController extends GetxController {
       isLoading.value = true;
       errorMessage.value = null;
 
+      // ✅ AuthService.signIn sudah cek is_active dan akan throw user-disabled bila nonaktif
       final firebaseUser = await _authService.signIn(email, password);
 
       if (firebaseUser != null) {
         user.value = await _authService.getUserProfile(firebaseUser.uid);
         _syncSessionViewer();
-        Get.offAllNamed(Routes.home);
+
+        // ❗PENTING:
+        // Jangan redirect di sini.
+        // LoginController kamu yang memutuskan adminDashboard / home berdasarkan role.
       }
     } on FirebaseAuthException catch (e) {
       errorMessage.value = _firebaseErrorMapper(e.code);
