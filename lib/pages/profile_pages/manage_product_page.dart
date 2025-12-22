@@ -142,29 +142,6 @@ class ManageProductPage extends GetView<ManageProductController> {
             const SizedBox(height: 24),
 
             const Text(
-              'Promote',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-
-            _menuTile(
-              icon: Icons.discount_outlined,
-              title: 'Diskon produk',
-              trailingText: controller.discountActive.value
-                  ? 'Aktif'
-                  : 'Nonaktif',
-              onTap: () =>
-                  controller.toggleDiscount(!controller.discountActive.value),
-            ),
-            _menuTile(
-              icon: Icons.forum_outlined,
-              title: 'Kirim nego',
-              onTap: () {},
-            ),
-
-            const SizedBox(height: 24),
-
-            const Text(
               'Manage',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),

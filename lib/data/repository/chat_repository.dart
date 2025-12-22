@@ -74,7 +74,7 @@ class ChatRepository {
         .collection('users')
         .doc(uid)
         .collection('inbox')
-        .where('sellerId', isEqualTo: sellerId)
+        .where('offer.sellerId', isEqualTo: sellerId)
         .where('offer.status', isEqualTo: 'accepted')
         .limit(1)
         .get();

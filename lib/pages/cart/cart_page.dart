@@ -231,7 +231,6 @@ class _SellerCartSectionDynamic extends StatelessWidget {
       final productId = doc.id;
 
       final title = (d['size'] ?? d['title'] ?? '').toString();
-      final price = d['price'] ?? 0;
 
       final thumb = (d['thumbnail_url'] ?? '').toString();
       final urls = (d['image_urls'] is List)
@@ -241,9 +240,15 @@ class _SellerCartSectionDynamic extends StatelessWidget {
           ? thumb
           : (urls.isNotEmpty ? urls.first : '');
 
+      final priceFinal = d['price'] ?? 0;
+      final priceOriginal = d['price_original'] ?? priceFinal;
+      final offerStatus = (d['offer_status'] ?? '').toString();
+
       return _CartItemTileDynamic(
         title: title.isEmpty ? 'Item' : title,
-        price: price,
+        priceFinal: priceFinal,
+        priceOriginal: priceOriginal,
+        offerStatus: offerStatus,
         imgUrl: img,
         rp: rp,
         showRemove: isEdit,
@@ -380,17 +385,20 @@ class _SellerCartSectionDynamic extends StatelessWidget {
 
 class _CartItemTileDynamic extends StatelessWidget {
   final String title;
-  final dynamic price;
+  final int priceFinal;
+  final int priceOriginal;
+  final String offerStatus;
   final String imgUrl;
   final String Function(dynamic) rp;
   final bool showRemove;
-
-  // ✅ FIX: biar boleh async
   final Future<void> Function()? onRemove;
 
   const _CartItemTileDynamic({
     required this.title,
-    required this.price,
+    required this.priceFinal,
+    required this.priceOriginal,
+    required this.offerStatus,
+
     required this.imgUrl,
     required this.rp,
     required this.showRemove,
@@ -426,22 +434,49 @@ class _CartItemTileDynamic extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ✅ harga final (nego / normal)
                 Text(
-                  rp(price),
+                  rp(priceFinal),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
+                    fontSize: 16,
                     shadows: [Shadow(blurRadius: 12)],
                   ),
                 ),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    shadows: [Shadow(blurRadius: 12)],
+
+                // ✅ tampilkan harga asli dicoret kalau nego accepted
+                if (offerStatus == 'accepted' && priceOriginal > priceFinal)
+                  Text(
+                    rp(priceOriginal),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      decoration: TextDecoration.lineThrough,
+                      shadows: [Shadow(blurRadius: 8)],
+                    ),
                   ),
-                ),
+
+                if (offerStatus == 'accepted')
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Harga Nego',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

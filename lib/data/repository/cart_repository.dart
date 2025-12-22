@@ -1,4 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:prelovedly/data/repository/chat_repository.dart';
+import 'package:prelovedly/data/services/chat_service.dart';
 import '../services/cart_service.dart';
 
 class CartRepository {
@@ -22,6 +26,7 @@ class CartRepository {
     if (viewerId.isEmpty) throw Exception('viewerId kosong');
     if (productId.isEmpty) throw Exception('productId kosong');
 
+    // ===================== ambil data produk =====================
     final prodSnap = await _service.productDoc(productId);
     if (!prodSnap.exists) throw Exception('Produk tidak ditemukan');
 
@@ -33,7 +38,7 @@ class CartRepository {
 
     final sellerId = (productData['seller_id'] ?? '').toString();
 
-    final price = (productData['price'] is int)
+    final priceOriginal = (productData['price'] is int)
         ? productData['price'] as int
         : int.tryParse('${productData['price']}') ?? 0;
 
@@ -46,6 +51,7 @@ class CartRepository {
         ? (productData['image_urls'] as List).map((e) => '$e').toList()
         : <String>[];
 
+    // ===================== ambil data seller =====================
     final sellerSnap = await _service.userDoc(sellerId);
     final sellerData = sellerSnap.data() ?? {};
     final sellerName =
@@ -55,6 +61,44 @@ class CartRepository {
                 '')
             .toString();
 
+    // ===================== cek offer accepted untuk produk ini =====================
+    int finalPrice = priceOriginal;
+    String offerStatus = '';
+    int offerPrice = 0;
+
+    try {
+      // Pastikan ChatService & ChatRepository tersedia
+      if (!Get.isRegistered<ChatService>()) {
+        Get.lazyPut(() => ChatService(FirebaseFirestore.instance), fenix: true);
+      }
+      if (!Get.isRegistered<ChatRepository>()) {
+        Get.lazyPut(() => ChatRepository(Get.find<ChatService>()), fenix: true);
+      }
+
+      final chatRepo = Get.find<ChatRepository>();
+
+      final tOffer = await chatRepo.findOfferThreadForProduct(
+        uid: viewerId,
+        peerId: sellerId,
+        productId: productId,
+      );
+
+      final st = (tOffer?.offer?.status ?? '').toLowerCase().trim();
+      if (st == 'accepted') {
+        offerPrice = tOffer?.offer?.offerPrice ?? 0;
+        if (offerPrice > 0) {
+          finalPrice = offerPrice;
+          offerStatus = 'accepted';
+        }
+      } else if (st.isNotEmpty) {
+        offerStatus = st;
+        offerPrice = tOffer?.offer?.offerPrice ?? 0;
+      }
+    } catch (_) {
+      // kalau gagal cek offer, tetap pakai harga asli (biar cart tetap jalan)
+    }
+
+    // ===================== simpan cart item (1 schema) =====================
     await _service.setCartItem(
       viewerId: viewerId,
       productId: productId,
@@ -62,12 +106,21 @@ class CartRepository {
         'product_id': productId,
         'seller_id': sellerId,
         'seller_name': sellerName.isEmpty ? sellerId : sellerName,
-        'price': price,
+
+        // ✅ harga yang dipakai di keranjang
+        'price': finalPrice,
+
+        // ✅ simpan harga asli & info offer (opsional untuk UI)
+        'price_original': priceOriginal,
+        'offer_status': offerStatus,
+        'offer_price': offerPrice,
+
         'title': title,
         'brand': brand,
         'size': size,
         'thumbnail_url': thumb,
         'image_urls': imageUrls,
+        'updated_at': FieldValue.serverTimestamp(),
         'created_at': FieldValue.serverTimestamp(),
       },
     );
