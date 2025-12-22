@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
+
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -14,10 +16,10 @@ class AdminDashboardPage extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              // Logika logout sederhana
-              Get.offAllNamed(Routes.login);
+            onPressed: () async {
+              await AuthController.to.signOut();
             },
+
           ),
         ],
       ),
