@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/view_model/auth_controller.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -9,6 +10,38 @@ class AdminDashboardPage extends StatelessWidget {
   // ====== THEME ======
   static const Color _primary = Color(0xFF0E2E72);
   static const Color _bg = Color(0xFFF5F6FA);
+
+  // ======================
+  // FIRESTORE COUNTERS
+  // ======================
+  Stream<int> _userCountStream() {
+    return FirebaseFirestore.instance.collection('users').snapshots().map((s) {
+      final nonAdmin = s.docs.where((d) {
+        final data = d.data();
+        final role = (data['role'] ?? '').toString().toLowerCase();
+        return role != 'admin';
+      }).length;
+
+      return nonAdmin;
+    });
+  }
+
+
+  Stream<int> _publishedProductCountStream() {
+    // Asumsi: products.status = "published"
+    return FirebaseFirestore.instance
+        .collection('products')
+        .where('status', isEqualTo: 'published')
+        .snapshots()
+        .map((s) => s.docs.length);
+
+    // Kalau di project kamu pakai boolean:
+    // return FirebaseFirestore.instance
+    //     .collection('products')
+    //     .where('published', isEqualTo: true)
+    //     .snapshots()
+    //     .map((s) => s.docs.length);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,23 +118,35 @@ class AdminDashboardPage extends StatelessWidget {
                 child: Column(
                   children: [
                     // ======================
-                    // QUICK STATS
+                    // QUICK STATS (LIVE)
                     // ======================
                     Row(
-                      children: const [
-                        _StatCard(
-                          title: 'User',
-                          value: '—',
-                          icon: Icons.people,
-                          color: Colors.blue,
+                      children: [
+                        StreamBuilder<int>(
+                          stream: _userCountStream(),
+                          builder: (context, snap) {
+                            final v = snap.data;
+                            return _StatCard(
+                              title: 'User',
+                              value: v == null ? '—' : v.toString(),
+                              icon: Icons.people,
+                              color: Colors.blue,
+                            );
+                          },
                         ),
-                        _StatCard(
-                          title: 'Produk',
-                          value: '—',
-                          icon: Icons.shopping_bag,
-                          color: Colors.green,
+                        StreamBuilder<int>(
+                          stream: _publishedProductCountStream(),
+                          builder: (context, snap) {
+                            final v = snap.data;
+                            return _StatCard(
+                              title: 'Produk',
+                              value: v == null ? '—' : v.toString(),
+                              icon: Icons.shopping_bag,
+                              color: Colors.green,
+                            );
+                          },
                         ),
-                        _StatCard(
+                        const _StatCard(
                           title: 'Order',
                           value: '—',
                           icon: Icons.receipt_long,

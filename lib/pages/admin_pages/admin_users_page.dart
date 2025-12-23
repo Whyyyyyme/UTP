@@ -4,8 +4,31 @@ import 'package:get/get.dart';
 
 import 'package:prelovedly/view_model/admin_users_controller.dart';
 
-class AdminUsersPage extends StatelessWidget {
+class AdminUsersPage extends StatefulWidget {
   const AdminUsersPage({super.key});
+
+  @override
+  State<AdminUsersPage> createState() => _AdminUsersPageState();
+}
+
+class _AdminUsersPageState extends State<AdminUsersPage> {
+  // ===== THEME =====
+  static const Color _bg = Color(0xFFF5F6FA);
+
+  late final AdminUsersController controller;
+  final TextEditingController _search = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(AdminUsersController());
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   Future<bool> _confirmToggle({
     required bool nextValue,
@@ -39,159 +62,389 @@ class AdminUsersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(AdminUsersController());
+    final q = _search.text.trim().toLowerCase();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kelola User'),
-        backgroundColor: Colors.redAccent,
-      ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: controller.streamUsers(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Gagal memuat data user: ${snapshot.error}'),
-            );
-          }
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _GradientHeader(
+              title: 'Kelola User',
+              subtitle: 'Aktif/nonaktif akun pengguna',
+              onBack: () => Get.back(),
+            ),
 
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            // SEARCH
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+              child: _SearchField(
+                controller: _search,
+                hint: 'Cari user (nama/email)...',
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
 
-          final users = snapshot.data!.docs;
+            // LIST
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: controller.streamUsers(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Gagal memuat data user: ${snapshot.error}'),
+                    );
+                  }
 
-          if (users.isEmpty) {
-            return const Center(child: Text('Belum ada user terdaftar'));
-          }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: users.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final doc = users[index];
-              final data = doc.data();
+                  final users = snapshot.data!.docs;
 
-              final uid = (data['uid'] ?? doc.id).toString();
-              final nama = (data['nama'] ?? '-').toString();
-              final email = (data['email'] ?? '-').toString();
-              final role = (data['role'] ?? '-').toString();
+                  if (users.isEmpty) {
+                    return const Center(
+                      child: Text('Belum ada user terdaftar'),
+                    );
+                  }
 
-              final isActive = (data['is_active'] is bool)
-                  ? data['is_active'] as bool
-                  : true;
+                  // filter lokal (biar search jalan tanpa ubah controller)
+                  final filtered = users.where((doc) {
+                    final data = doc.data();
+                    final nama = (data['nama'] ?? '-').toString().toLowerCase();
+                    final email = (data['email'] ?? '-')
+                        .toString()
+                        .toLowerCase();
+                    if (q.isEmpty) return true;
+                    return nama.contains(q) || email.contains(q);
+                  }).toList();
 
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.grey.shade300,
-                      child: Text(
-                        nama.isNotEmpty ? nama[0].toUpperCase() : '?',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                  if (filtered.isEmpty) {
+                    return const Center(child: Text('User tidak ditemukan'));
+                  }
 
-                    // kiri: info user
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            nama,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(email),
-                          const SizedBox(height: 2),
-                          Text('Role: $role'),
-                        ],
-                      ),
-                    ),
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final doc = filtered[index];
+                      final data = doc.data();
 
-                    const SizedBox(width: 12),
+                      final uid = (data['uid'] ?? doc.id).toString();
+                      final nama = (data['nama'] ?? '-').toString();
+                      final email = (data['email'] ?? '-').toString();
+                      final role = (data['role'] ?? '-').toString();
 
-                    // kanan: switch + status (tidak overflow)
-                    Obx(() {
-                      final isLoading = controller.togglingUid.value == uid;
+                      final isActive = (data['is_active'] is bool)
+                          ? data['is_active'] as bool
+                          : true;
 
-                      return SizedBox(
-                        width: 96, // sedikit lebih lebar biar stabil di web
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // bikin switch ikut center
-                            Center(
-                              child: Switch(
-                                value: isActive,
-                                onChanged: isLoading
-                                    ? null
-                                    : (val) async {
-                                        final ok = await _confirmToggle(
-                                          nextValue: val,
-                                          nama: nama,
-                                          email: email,
-                                        );
-                                        if (!ok) return;
+                      return _UserCard(
+                        uid: uid,
+                        nama: nama,
+                        email: email,
+                        role: role,
+                        isActive: isActive,
+                        togglingUidRx: controller.togglingUid,
+                        onToggle: (val) async {
+                          final ok = await _confirmToggle(
+                            nextValue: val,
+                            nama: nama,
+                            email: email,
+                          );
+                          if (!ok) return;
 
-                                        await controller.toggleUserStatus(
-                                          uid: uid,
-                                          nextValue: val,
-                                        );
-                                      },
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-
-                            // status juga center
-                            if (isLoading)
-                              const SizedBox(
-                                height: 12,
-                                width: 12,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            else
-                              Text(
-                                isActive ? 'Aktif' : 'Nonaktif',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isActive ? Colors.green : Colors.red,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                          ],
-                        ),
+                          await controller.toggleUserStatus(
+                            uid: uid,
+                            nextValue: val,
+                          );
+                        },
                       );
-                    }),
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================
+// HEADER (linear dashboard)
+// ==========================
+class _GradientHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onBack;
+
+  const _GradientHeader({
+    required this.title,
+    required this.subtitle,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0E2E72), Color(0xFF1E88E5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(22),
+          bottomRight: Radius.circular(22),
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================
+// SEARCH FIELD (modern)
+// ==========================
+class _SearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final ValueChanged<String>? onChanged;
+
+  const _SearchField({
+    required this.controller,
+    required this.hint,
+    this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search, color: Colors.grey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              decoration: InputDecoration(
+                hintText: hint,
+                border: InputBorder.none,
+                hintStyle: const TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          if (controller.text.isNotEmpty)
+            InkWell(
+              onTap: () {
+                controller.clear();
+                onChanged?.call('');
+              },
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(Icons.close, size: 18, color: Colors.grey),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================
+// USER CARD (modern)
+// ==========================
+class _UserCard extends StatelessWidget {
+  final String uid;
+  final String nama;
+  final String email;
+  final String role;
+  final bool isActive;
+
+  final RxnString togglingUidRx;
+  final ValueChanged<bool> onToggle;
+
+  const _UserCard({
+    required this.uid,
+    required this.nama,
+    required this.email,
+    required this.role,
+    required this.isActive,
+    required this.togglingUidRx,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = isActive ? Colors.green : Colors.red;
+    final statusText = isActive ? 'Aktif' : 'Nonaktif';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: Colors.grey.shade200,
+            child: Text(
+              nama.isNotEmpty ? nama[0].toUpperCase() : '?',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nama,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _Pill(text: 'Role: $role', color: Colors.blueGrey),
+                    const SizedBox(width: 8),
+                    _Pill(text: statusText, color: statusColor),
                   ],
                 ),
-              );
-            },
-          );
-        },
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 10),
+          Obx(() {
+            final isLoading = togglingUidRx.value == uid;
+            return SizedBox(
+              width: 92,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Switch(
+                      value: isActive,
+                      onChanged: isLoading ? null : onToggle,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (isLoading)
+                    const SizedBox(
+                      height: 12,
+                      width: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _Pill({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
