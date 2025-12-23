@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/data/repository/shipping_repository.dart';
 import '../../models/shipping_method_model.dart';
 import '../../view_model/shipping_controller.dart';
 
@@ -9,18 +8,13 @@ class SelectShippingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = (Get.arguments is Map) ? (Get.arguments as Map) : {};
-    final sellerId = (args['sellerId'] ?? '').toString();
+    final c = Get.find<ShippingController>();
 
-    if (sellerId.isEmpty) {
+    if (c.sellerId.trim().isEmpty) {
       return const Scaffold(
         body: Center(child: Text('sellerId kosong. Tidak bisa memuat kurir.')),
       );
     }
-    final c = Get.put(
-      ShippingController(Get.find<ShippingRepository>(), sellerId: sellerId),
-      tag: 'shipping_$sellerId',
-    );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -31,7 +25,7 @@ class SelectShippingPage extends StatelessWidget {
         elevation: 0.5,
       ),
       body: StreamBuilder<List<ShippingMethodModel>>(
-        stream: c.streamEnabled(), // ✅ hanya enabled
+        stream: c.streamEnabled(),
         builder: (context, snap) {
           final list = snap.data ?? [];
           if (snap.connectionState == ConnectionState.waiting && list.isEmpty) {
@@ -61,8 +55,21 @@ class SelectShippingPage extends StatelessWidget {
                   m.name,
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
-                subtitle: Text(m.desc),
-                onTap: () => Get.back(result: m), // ✅ return ke checkout
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(m.desc),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Estimasi: ${m.eta} • Ongkir: Rp ${m.fee}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  debugPrint('PICK ${m.name} fee=${m.fee} eta=${m.eta}');
+                  Get.back(result: m);
+                },
               );
             },
           );

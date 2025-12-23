@@ -10,9 +10,21 @@ class ShopProfileRepository {
     required String userId,
     required bool isMe,
   }) {
-    return _service
-        .sellerProductsSnap(userId: userId, isMe: isMe)
-        .map((snap) => snap.docs.map((d) => ProductModel.fromDoc(d)).toList());
+    return _service.sellerProductsSnap(userId: userId, isMe: isMe).map((snap) {
+      final out = <ProductModel>[];
+
+      for (final d in snap.docs) {
+        try {
+          out.add(ProductModel.fromDoc(d));
+        } catch (e) {
+          // ✅ jangan bikin Shop Profile crash
+          // ignore: avoid_print
+          print('PARSE PRODUCT FAIL id=${d.id} data=${d.data()} err=$e');
+        }
+      }
+
+      return out;
+    });
   }
 
   Stream<Map<String, dynamic>?> userByUidStream(String uid) {

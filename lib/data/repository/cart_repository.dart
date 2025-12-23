@@ -51,6 +51,13 @@ class CartRepository {
         ? (productData['image_urls'] as List).map((e) => '$e').toList()
         : <String>[];
 
+    // ===================== ✅ promo ongkir dari produk =====================
+    final promoShippingActive =
+        (productData['promo_shipping_active'] ?? false) == true;
+    final promoShippingAmount = (productData['promo_shipping_amount'] is int)
+        ? productData['promo_shipping_amount'] as int
+        : int.tryParse('${productData['promo_shipping_amount']}') ?? 0;
+
     // ===================== ambil data seller =====================
     final sellerSnap = await _service.userDoc(sellerId);
     final sellerData = sellerSnap.data() ?? {};
@@ -120,6 +127,11 @@ class CartRepository {
         'size': size,
         'thumbnail_url': thumb,
         'image_urls': imageUrls,
+
+        // ✅ NEW: promo ongkir ikut masuk ke cart
+        'promo_shipping_active': promoShippingActive,
+        'promo_shipping_amount': promoShippingAmount,
+
         'updated_at': FieldValue.serverTimestamp(),
         'created_at': FieldValue.serverTimestamp(),
       },

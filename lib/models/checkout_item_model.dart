@@ -10,6 +10,8 @@ class CheckoutItemModel {
   final int priceOriginal;
   final String offerStatus;
   final int offerPrice;
+  final bool promoShippingActive;
+  final int promoShippingAmount;
 
   CheckoutItemModel({
     required this.productId,
@@ -21,6 +23,8 @@ class CheckoutItemModel {
     required this.priceOriginal,
     required this.offerStatus,
     required this.offerPrice,
+    required this.promoShippingActive,
+    required this.promoShippingAmount,
   });
 
   factory CheckoutItemModel.fromMap(Map<String, dynamic> d, String docId) {
@@ -48,6 +52,8 @@ class CheckoutItemModel {
     final image = imgUrl.isNotEmpty
         ? imgUrl
         : (thumb.isNotEmpty ? thumb : (urls.isNotEmpty ? urls.first : ''));
+    final promoActive = (d['promo_shipping_active'] ?? false) == true;
+    final promoAmount = _toInt(d['promo_shipping_amount']);
 
     return CheckoutItemModel(
       productId: (d['product_id'] ?? docId).toString(),
@@ -59,6 +65,8 @@ class CheckoutItemModel {
       priceOriginal: priceOriginal > 0 ? priceOriginal : priceFinal,
       offerStatus: offerStatus,
       offerPrice: offerPrice,
+      promoShippingActive: promoActive,
+      promoShippingAmount: promoAmount,
     );
   }
 }

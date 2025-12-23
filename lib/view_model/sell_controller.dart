@@ -46,6 +46,7 @@ class SellController extends GetxController {
   final material = ''.obs;
 
   final promoActive = false.obs;
+
   final isSaving = false.obs;
   final canPublish = false.obs;
 
@@ -396,6 +397,19 @@ class SellController extends GetxController {
     style.value = (data['style'] ?? '').toString();
     material.value = (data['material'] ?? '').toString();
 
+    promoActive.value = (data['promo_shipping_active'] ?? false) == true;
+
+    final promoRaw = data['promo_shipping_amount'];
+    final promoInt = promoRaw is int
+        ? promoRaw
+        : int.tryParse('$promoRaw') ?? 0;
+
+    if (promoActive.value && promoInt > 0) {
+      promoC.text = _formatter.format(promoInt);
+    } else {
+      promoC.clear();
+    }
+
     // style multi (kalau kamu simpan "A, B")
     selectedStyles.clear();
     if (style.value.trim().isNotEmpty) {
@@ -470,6 +484,10 @@ class SellController extends GetxController {
         color: color.value,
         style: style.value,
         material: material.value,
+        promoShippingActive: promoActive.value,
+        promoShippingAmount: promoActive.value
+            ? (parseInt(promoC.text) ?? 0)
+            : 0,
       );
 
       await _repo.saveProduct(docRef: docRef, data: product.toMap());

@@ -95,4 +95,44 @@ class CheckoutRepository {
 
     await batch.commit();
   }
+
+  Future<void> backfillPromoToCart(String buyerId) async {
+    final cartSnap = await _service.cartItemsRef(buyerId).get();
+    if (cartSnap.docs.isEmpty) return;
+
+    final batch = _service.db.batch();
+    var changed = 0;
+
+    for (final d in cartSnap.docs) {
+      final data = d.data();
+
+      final hasActive = data.containsKey('promo_shipping_active');
+      final hasAmount = data.containsKey('promo_shipping_amount');
+
+      if (hasActive && hasAmount) continue;
+
+      final productId = (data['product_id'] ?? d.id).toString();
+      if (productId.isEmpty) continue;
+
+      final prod = await _service.productRef(productId).get();
+      final pd = prod.data() ?? {};
+
+      final promoActive = (pd['promo_shipping_active'] ?? false) == true;
+      final promoAmount = (pd['promo_shipping_amount'] is int)
+          ? (pd['promo_shipping_amount'] as int)
+          : int.tryParse('${pd['promo_shipping_amount']}') ?? 0;
+
+      batch.set(d.reference, {
+        if (!hasActive) 'promo_shipping_active': promoActive,
+        if (!hasAmount) 'promo_shipping_amount': promoAmount,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      changed++;
+    }
+
+    if (changed > 0) {
+      await batch.commit();
+    }
+  }
 }

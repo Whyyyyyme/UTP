@@ -1,8 +1,7 @@
+// lib/pages/checkout/checkout_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prelovedly/models/address_model.dart';
 import 'package:prelovedly/models/shipping_method_model.dart';
-import 'package:prelovedly/pages/checkout/select_address_page.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/view_model/address_controller.dart';
 import 'package:prelovedly/view_model/checkout_controller.dart';
@@ -43,6 +42,28 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
+  Future<void> _pickShipping(String sellerId) async {
+    if (sellerId.trim().isEmpty) {
+      Get.snackbar('Info', 'SellerId tidak ditemukan dari item checkout');
+      return;
+    }
+
+    final picked = await Get.toNamed(
+      Routes.selectShipping,
+      arguments: {'sellerId': sellerId},
+    );
+
+    if (picked is! ShippingMethodModel) return;
+
+    vm.setShipping(
+      method: picked.name,
+      fee: picked.fee,
+      eta: picked.eta,
+      methodId: picked.id,
+      methodKey: picked.key,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -54,15 +75,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
       final loading = vm.isLoading.value;
       final err = vm.error.value;
 
-      // ✅ ambil sellerId dari item pertama (karena UI kamu memang pakai first item)
+      // ✅ single seller checkout: ambil sellerId dari item pertama
       final String sellerId = vm.items.isNotEmpty
           ? vm.items.first.sellerId
           : '';
 
-      // ✅ ambil shipping untuk seller itu
-      final sh = sellerId.isEmpty
-          ? {'method': '', 'fee': 0, 'eta': ''}
-          : vm.shippingFor(sellerId);
+      final shipMethod = (vm.shipping['method'] ?? '').toString();
+      final shipEta = (vm.shipping['eta'] ?? '').toString();
+
+      final feeOriginal = (vm.shipping['fee_original'] is int)
+          ? vm.shipping['fee_original'] as int
+          : int.tryParse('${vm.shipping['fee_original']}') ?? 0;
+
+      final promoDiscount = (vm.shipping['promo_discount'] is int)
+          ? vm.shipping['promo_discount'] as int
+          : int.tryParse('${vm.shipping['promo_discount']}') ?? 0;
 
       return Scaffold(
         backgroundColor: Colors.white,
@@ -79,7 +106,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         body: loading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
                 children: [
                   if (err != null)
                     Container(
@@ -136,13 +163,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       return parts.isEmpty ? 'Pilih alamat' : parts.join(', ');
                     })(),
                     onTap: () async {
-                      final res = await Get.to<AddressModel>(
-                        () => const SelectAddressPage(),
-                      );
-                      if (res != null) {
-                        AddressController.to.selectedAddress.value = res;
-                        // ❌ gak perlu setState karena Obx akan rebuild
-                      }
+                      // ✅ route ini harus ada di project kamu.
+                      // kalau route-mu beda, ganti sesuai yang kamu pakai.
+                      await Get.toNamed(Routes.selectAddress);
                     },
                   ),
 
@@ -151,39 +174,88 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   // ===== Shipping
                   _SectionTile(
                     title: 'Pengiriman',
-                    subtitle: (sh['method'] ?? '').toString().isEmpty
+                    subtitle: shipMethod.isEmpty
                         ? 'Pilih pengiriman'
-                        : '${sh['method']} • ${sh['eta']}',
-                    onTap: sellerId.isEmpty
-                        ? () {
-                            Get.snackbar(
-                              'Info',
-                              'SellerId tidak ditemukan dari item checkout',
-                            );
-                          }
-                        : () async {
-                            final sellerId = vm.items.isNotEmpty
-                                ? vm.items.first.sellerId
-                                : '';
-                            final picked = await Get.toNamed(
-                              Routes.selectShipping,
-                              arguments: {'sellerId': sellerId},
-                            );
-
-                            if (picked is ShippingMethodModel) {
-                              vm.setShippingForSeller(
-                                sellerId: sellerId,
-                                method: picked.name,
-                                fee:
-                                    0, // nanti bisa diisi dari method kalau ada fee
-                                eta:
-                                    '-', // nanti bisa diisi jika kamu punya ETA
-                              );
-                            }
-                          },
+                        : '$shipMethod${shipEta.isEmpty ? '' : ' • $shipEta'}',
+                    onTap: () async => _pickShipping(sellerId),
                   ),
 
                   const SizedBox(height: 18),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+
+                  // ===== Breakdown
+                  Row(
+                    children: [
+                      const Text(
+                        'Subtotal',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const Spacer(),
+                      Text(
+                        rp(vm.subtotal),
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      const Text(
+                        'Ongkir',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const Spacer(),
+                      Text(
+                        rp(vm.shippingFee),
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ],
+                  ),
+
+                  if (promoDiscount > 0) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Text(
+                          'Promo ongkir',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '- ${rp(promoDiscount)}',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  if (feeOriginal > 0 && promoDiscount > 0) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          'Ongkir sebelum promo',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          rp(feeOriginal),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Colors.grey.shade700,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 14),
                   const Divider(height: 1),
                   const SizedBox(height: 12),
 

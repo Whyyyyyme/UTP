@@ -28,6 +28,7 @@ import 'package:prelovedly/data/services/shipping_service.dart';
 import 'package:prelovedly/data/services/shop_service.dart';
 import 'package:prelovedly/pages/chat/chat_page.dart';
 import 'package:prelovedly/pages/checkout/checkout_page.dart';
+import 'package:prelovedly/pages/checkout/select_address_page.dart';
 import 'package:prelovedly/pages/checkout/select_shipping_page.dart';
 import 'package:prelovedly/pages/inbox_page.dart';
 import 'package:prelovedly/pages/product/nego_page.dart';
@@ -772,16 +773,14 @@ class AppPages {
           CheckoutController(Get.find<CheckoutRepository>()),
           permanent: false,
         );
-        Get.lazyPut(() => ShippingService(FirebaseFirestore.instance));
-        Get.lazyPut(() => ShippingRepository(Get.find<ShippingService>()));
-        final args = (Get.arguments is Map) ? (Get.arguments as Map) : {};
-        final sellerId = (args['sellerId'] ?? '').toString();
-        Get.put(
-          ShippingController(
-            Get.find<ShippingRepository>(),
-            sellerId: sellerId,
-          ),
-        );
+      }),
+    ),
+
+    GetPage(
+      name: Routes.selectAddress,
+      page: () => SelectAddressPage(),
+      binding: BindingsBuilder(() {
+        _ensureAddress();
       }),
     ),
 
@@ -797,7 +796,9 @@ class AppPages {
           ShippingController(
             Get.find<ShippingRepository>(),
             sellerId: sellerId,
+            autoSeed: true,
           ),
+          permanent: false,
         );
       }),
     ),
@@ -810,11 +811,18 @@ class AppPages {
         Get.lazyPut(() => ShippingRepository(Get.find<ShippingService>()));
         final args = (Get.arguments is Map) ? (Get.arguments as Map) : {};
         final sellerId = (args['sellerId'] ?? '').toString();
+
+        if (Get.isRegistered<ShippingController>()) {
+          Get.delete<ShippingController>(force: true);
+        }
+
         Get.put(
           ShippingController(
             Get.find<ShippingRepository>(),
             sellerId: sellerId,
+            autoSeed: false,
           ),
+          permanent: false,
         );
       }),
     ),

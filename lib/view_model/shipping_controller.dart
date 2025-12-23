@@ -3,12 +3,15 @@ import '../data/repository/shipping_repository.dart';
 import '../models/shipping_method_model.dart';
 
 class ShippingController extends GetxController {
-  ShippingController(this._repo, {required this.sellerId});
+  ShippingController(
+    this._repo, {
+    required this.sellerId,
+    this.autoSeed = false,
+  });
   final ShippingRepository _repo;
   final String sellerId;
-
+  final bool autoSeed;
   final isLoading = false.obs;
-
   final selected = Rxn<ShippingMethodModel>();
 
   Stream<List<ShippingMethodModel>> streamAll() => _repo.streamAll(sellerId);
@@ -18,7 +21,10 @@ class ShippingController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _seed();
+    if (sellerId.trim().isEmpty) return;
+    if (autoSeed) {
+      _seed();
+    }
   }
 
   Future<void> _seed() async {
@@ -34,6 +40,7 @@ class ShippingController extends GetxController {
     required ShippingMethodModel m,
     required bool enabled,
   }) async {
+    if (sellerId.trim().isEmpty) return;
     await _repo.toggleEnabled(
       sellerId: sellerId,
       methodId: m.id,

@@ -28,7 +28,9 @@ class SellService {
   Future<void> setProduct(
     DocumentReference<Map<String, dynamic>> ref,
     Map<String, dynamic> data,
-  ) => ref.set(data, SetOptions(merge: true));
+  ) async {
+    await ref.set(data, SetOptions(merge: true));
+  }
 
   Future<void> updateProductFields(
     String productId,

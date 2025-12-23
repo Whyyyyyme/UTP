@@ -32,7 +32,6 @@ class SellRepository {
     required List<SellImage> images,
     required Map<String, dynamic>? oldData,
   }) async {
-    // upload hanya image lokal; url lama keep
     final urls = <String>[];
 
     for (final img in images) {
@@ -49,7 +48,6 @@ class SellRepository {
       urls.add(u);
     }
 
-    // kalau edit tapi user gak bawa image sama sekali: pakai lama
     if (urls.isEmpty) {
       final old =
           (oldData?['image_urls'] as List?)
@@ -66,6 +64,22 @@ class SellRepository {
     required DocumentReference<Map<String, dynamic>> docRef,
     required Map<String, dynamic> data,
   }) async {
+    final oldSnap = await docRef.get();
+    final oldData = oldSnap.data() ?? {};
+
+    final hasPromoActive = data.containsKey('promo_shipping_active');
+    final hasPromoAmount = data.containsKey('promo_shipping_amount');
+
+    if (!hasPromoActive && oldData.containsKey('promo_shipping_active')) {
+      data['promo_shipping_active'] = oldData['promo_shipping_active'];
+    }
+    if (!hasPromoAmount && oldData.containsKey('promo_shipping_amount')) {
+      data['promo_shipping_amount'] = oldData['promo_shipping_amount'];
+    }
+
+    data['promo_shipping_active'] ??= false;
+    data['promo_shipping_amount'] ??= 0;
+
     await _service.setProduct(docRef, data);
   }
 

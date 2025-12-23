@@ -16,6 +16,8 @@ class ProductModel {
   final String color;
   final String style;
   final String material;
+  final bool promoShippingActive;
+  final int promoShippingAmount;
   final Timestamp createdAt;
   final Timestamp updatedAt;
 
@@ -35,6 +37,8 @@ class ProductModel {
     required this.color,
     required this.style,
     required this.material,
+    required this.promoShippingActive,
+    required this.promoShippingAmount,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -63,6 +67,10 @@ class ProductModel {
       color: data['color'] ?? '',
       style: data['style'] ?? '',
       material: data['material'] ?? '',
+      promoShippingActive: (data['promo_shipping_active'] ?? false) == true,
+      promoShippingAmount: (data['promo_shipping_amount'] ?? 0) is int
+          ? data['promo_shipping_amount'] as int
+          : int.tryParse('${data['promo_shipping_amount']}') ?? 0,
       createdAt: data['created_at'] ?? Timestamp.now(),
       updatedAt: data['updated_at'] ?? Timestamp.now(),
     );
@@ -85,6 +93,8 @@ class ProductModel {
       'color': color,
       'style': style,
       'material': material,
+      'promo_shipping_active': promoShippingActive,
+      'promo_shipping_amount': promoShippingAmount,
       'created_at': createdAt,
       'updated_at': updatedAt,
     };

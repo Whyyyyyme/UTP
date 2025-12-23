@@ -18,9 +18,12 @@ class CheckoutController extends GetxController {
   final shipping = <String, dynamic>{
     'method': '',
     'fee': 0,
+    'fee_original': 0,
+    'promo_discount': 0,
     'eta': '',
     'method_id': '',
     'method_key': '',
+    'seller_id': '',
   }.obs;
 
   final selectedPayment = Rxn<PaymentMethodModel>();
@@ -28,7 +31,17 @@ class CheckoutController extends GetxController {
   final shippingBySeller = <String, Map<String, dynamic>>{}.obs;
 
   Map<String, dynamic> shippingFor(String sellerId) {
-    return shippingBySeller[sellerId] ?? {'method': '', 'fee': 0, 'eta': ''};
+    return shippingBySeller[sellerId] ??
+        {
+          'method': '',
+          'fee': 0,
+          'fee_original': 0,
+          'promo_discount': 0,
+          'eta': '',
+          'method_id': '',
+          'method_key': '',
+          'seller_id': sellerId,
+        };
   }
 
   void setShippingForSeller({
@@ -36,9 +49,30 @@ class CheckoutController extends GetxController {
     required String method,
     required int fee,
     required String eta,
+    String methodId = '',
+    String methodKey = '',
   }) {
-    shippingBySeller[sellerId] = {'method': method, 'fee': fee, 'eta': eta};
+    final promo = _promoShippingDiscount(sellerId);
+    final discount = promo > fee ? fee : promo;
+    final finalFee = fee - discount;
+
+    shippingBySeller[sellerId] = {
+      'method': method,
+      'fee': finalFee,
+      'fee_original': fee,
+      'promo_discount': discount,
+      'eta': eta,
+      'method_id': methodId,
+      'method_key': methodKey,
+      'seller_id': sellerId,
+    };
     shippingBySeller.refresh();
+
+    // ✅ supaya Checkout UI (yang masih single seller) ikut berubah
+    final currentSeller = (shipping['seller_id'] ?? '').toString();
+    if (currentSeller.isEmpty || currentSeller == sellerId) {
+      shipping.assignAll(shippingBySeller[sellerId]!);
+    }
   }
 
   // payment methods list
@@ -82,6 +116,7 @@ class CheckoutController extends GetxController {
     try {
       isLoading.value = true;
       error.value = null;
+      await _repo.backfillPromoToCart(buyerId);
 
       final cart = await _repo.getCartItems(buyerId);
       items.assignAll(cart);
@@ -93,9 +128,12 @@ class CheckoutController extends GetxController {
         shipping.assignAll({
           'method': '',
           'fee': 0,
+          'fee_original': 0,
+          'promo_discount': 0,
           'eta': '',
           'method_id': '',
           'method_key': '',
+          'seller_id': '',
         });
       }
     } catch (e) {
@@ -111,14 +149,24 @@ class CheckoutController extends GetxController {
     required String eta,
     String methodId = '',
     String methodKey = '',
+    String sellerId = '',
   }) {
+    final promo = _promoShippingDiscount(sellerId);
+    final discount = promo > fee ? fee : promo;
+    final finalFee = fee - discount;
+
     shipping.assignAll({
       'method': method,
-      'fee': fee,
+      'fee': finalFee,
+      'fee_original': fee,
+      'promo_discount': discount,
       'eta': eta,
       'method_id': methodId,
       'method_key': methodKey,
+      'seller_id': sellerId,
     });
+
+    shipping.refresh();
   }
 
   void setPayment(PaymentMethodModel m) {
@@ -157,5 +205,17 @@ class CheckoutController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  int _promoShippingDiscount(String sellerId) {
+    int maxPromo = 0;
+    for (final it in items) {
+      // kalau sellerId dikirim, promo hanya dari item seller tsb
+      if (sellerId.trim().isNotEmpty && it.sellerId != sellerId) continue;
+
+      if (!it.promoShippingActive) continue;
+      if (it.promoShippingAmount > maxPromo) maxPromo = it.promoShippingAmount;
+    }
+    return maxPromo;
   }
 }
