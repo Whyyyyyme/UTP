@@ -1,6 +1,7 @@
 class CheckoutItemModel {
   final String productId;
   final String sellerId;
+  final String sellerUid;
 
   final String title;
   final String size;
@@ -16,6 +17,7 @@ class CheckoutItemModel {
   CheckoutItemModel({
     required this.productId,
     required this.sellerId,
+    required this.sellerUid,
     required this.title,
     required this.size,
     required this.imageUrl,
@@ -58,6 +60,7 @@ class CheckoutItemModel {
     return CheckoutItemModel(
       productId: (d['product_id'] ?? docId).toString(),
       sellerId: (d['seller_id'] ?? '').toString(),
+      sellerUid: (d['seller_uid'] ?? '').toString(),
       title: (d['title'] ?? '').toString(),
       size: (d['size'] ?? '').toString(),
       imageUrl: image,

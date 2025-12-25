@@ -29,6 +29,7 @@ class CheckoutController extends GetxController {
   final selectedPayment = Rxn<PaymentMethodModel>();
 
   final shippingBySeller = <String, Map<String, dynamic>>{}.obs;
+  final paymentDeadline = Rxn<DateTime>();
 
   Map<String, dynamic> shippingFor(String sellerId) {
     return shippingBySeller[sellerId] ??
@@ -52,7 +53,7 @@ class CheckoutController extends GetxController {
     String methodId = '',
     String methodKey = '',
   }) {
-    final promo = _promoShippingDiscount(sellerId);
+    final promo = promoShippingDiscount(sellerId);
     final discount = promo > fee ? fee : promo;
     final finalFee = fee - discount;
 
@@ -74,28 +75,6 @@ class CheckoutController extends GetxController {
       shipping.assignAll(shippingBySeller[sellerId]!);
     }
   }
-
-  // payment methods list
-  final paymentMethods = const <PaymentMethodModel>[
-    PaymentMethodModel(
-      id: 'cod',
-      title: 'COD (Bayar di tempat)',
-      subtitle: 'Bayar saat barang sampai',
-      iconKey: 'cod',
-    ),
-    PaymentMethodModel(
-      id: 'bank_transfer',
-      title: 'Transfer Bank',
-      subtitle: 'Virtual account / manual transfer',
-      iconKey: 'bank',
-    ),
-    PaymentMethodModel(
-      id: 'ewallet',
-      title: 'E-Wallet',
-      subtitle: 'OVO / DANA / GoPay (dummy)',
-      iconKey: 'wallet',
-    ),
-  ];
 
   int get subtotal => items.fold<int>(0, (s, it) => s + it.priceFinal);
   int get shippingFee => (shipping['fee'] is int)
@@ -151,7 +130,7 @@ class CheckoutController extends GetxController {
     String methodKey = '',
     String sellerId = '',
   }) {
-    final promo = _promoShippingDiscount(sellerId);
+    final promo = promoShippingDiscount(sellerId);
     final discount = promo > fee ? fee : promo;
     final finalFee = fee - discount;
 
@@ -173,9 +152,18 @@ class CheckoutController extends GetxController {
     selectedPayment.value = m;
   }
 
-  Future<void> payNow(String buyerId) async {
+  // /mnt/data/checkout_controller.dart
+
+  Future<void> payNow(String buyerId, {bool popAfter = true}) async {
     if (!canPay) {
       error.value = 'Lengkapi alamat, pengiriman, dan pembayaran.';
+      return;
+    }
+
+    // optional: cek deadline
+    final dl = paymentDeadline.value;
+    if (dl != null && DateTime.now().isAfter(dl)) {
+      error.value = 'Waktu pembayaran habis. Silakan checkout ulang.';
       return;
     }
 
@@ -191,14 +179,17 @@ class CheckoutController extends GetxController {
         payment: {
           'method_id': selectedPayment.value!.id,
           'method_title': selectedPayment.value!.title,
-          'status': selectedPayment.value!.id == 'cod'
-              ? 'cod'
+          'status': selectedPayment.value!.id == 'pay'
+              ? 'pay'
               : 'waiting_payment',
         },
       );
 
       Get.snackbar('Sukses', 'Order berhasil dibuat');
-      Get.back(); // keluar dari checkout (atau arahkan ke order detail page)
+
+      if (popAfter) {
+        Get.back();
+      }
     } catch (e) {
       error.value = e.toString();
       Get.snackbar('Gagal', error.value ?? 'unknown error');
@@ -207,7 +198,7 @@ class CheckoutController extends GetxController {
     }
   }
 
-  int _promoShippingDiscount(String sellerId) {
+  int promoShippingDiscount(String sellerId) {
     int maxPromo = 0;
     for (final it in items) {
       // kalau sellerId dikirim, promo hanya dari item seller tsb
@@ -217,5 +208,9 @@ class CheckoutController extends GetxController {
       if (it.promoShippingAmount > maxPromo) maxPromo = it.promoShippingAmount;
     }
     return maxPromo;
+  }
+
+  void startPaymentDeadline() {
+    paymentDeadline.value = DateTime.now().add(const Duration(hours: 1));
   }
 }

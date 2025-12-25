@@ -9,6 +9,7 @@ import 'package:prelovedly/data/repository/inbox_repository.dart';
 import 'package:prelovedly/data/repository/like_repository.dart';
 import 'package:prelovedly/data/repository/manage_product_repository.dart';
 import 'package:prelovedly/data/repository/nego_repository.dart';
+import 'package:prelovedly/data/repository/orders_repository.dart';
 import 'package:prelovedly/data/repository/product_repository.dart';
 import 'package:prelovedly/data/repository/sell_repository.dart';
 import 'package:prelovedly/data/repository/shipping_repository.dart';
@@ -28,9 +29,12 @@ import 'package:prelovedly/data/services/shipping_service.dart';
 import 'package:prelovedly/data/services/shop_service.dart';
 import 'package:prelovedly/pages/chat/chat_page.dart';
 import 'package:prelovedly/pages/checkout/checkout_page.dart';
+import 'package:prelovedly/pages/checkout/checkout_success_page.dart';
+import 'package:prelovedly/pages/checkout/payment_page.dart';
 import 'package:prelovedly/pages/checkout/select_address_page.dart';
 import 'package:prelovedly/pages/checkout/select_shipping_page.dart';
 import 'package:prelovedly/pages/inbox_page.dart';
+import 'package:prelovedly/pages/order/orders_page.dart';
 import 'package:prelovedly/pages/product/nego_page.dart';
 import 'package:prelovedly/pages/email_login_page.dart';
 
@@ -62,6 +66,7 @@ import 'package:prelovedly/view_model/inbox_controller.dart';
 import 'package:prelovedly/view_model/login_controller.dart';
 import 'package:prelovedly/view_model/manage_product_controller.dart';
 import 'package:prelovedly/view_model/nego_controller.dart';
+import 'package:prelovedly/view_model/orders_controller.dart';
 import 'package:prelovedly/view_model/product/brand_controller.dart';
 import 'package:prelovedly/view_model/product/color_picker_controller.dart';
 import 'package:prelovedly/view_model/product/condition_picker_controller.dart';
@@ -823,6 +828,54 @@ class AppPages {
             autoSeed: false,
           ),
           permanent: false,
+        );
+      }),
+    ),
+
+    GetPage(
+      name: Routes.checkoutPayment,
+      page: () => const CheckoutPaymentPage(),
+      binding: BindingsBuilder(() {
+        // pastikan dependency checkout ada
+        if (!Get.isRegistered<CheckoutService>()) {
+          Get.lazyPut(
+            () => CheckoutService(FirebaseFirestore.instance),
+            fenix: false,
+          );
+        }
+        if (!Get.isRegistered<CheckoutRepository>()) {
+          Get.lazyPut(
+            () => CheckoutRepository(Get.find<CheckoutService>()),
+            fenix: false,
+          );
+        }
+
+        if (!Get.isRegistered<CheckoutController>()) {
+          Get.put(
+            CheckoutController(Get.find<CheckoutRepository>()),
+            permanent: false,
+          );
+        }
+      }),
+    ),
+
+    GetPage(
+      name: Routes.checkoutSuccess,
+      page: () => const CheckoutSuccessPage(),
+      binding: BindingsBuilder(() {
+        if (Get.isRegistered<CheckoutController>()) {}
+      }),
+    ),
+
+    GetPage(
+      name: Routes.orders,
+      page: () => const OrdersPage(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<OrdersRepository>(() => OrdersRepository(), fenix: false);
+
+        Get.lazyPut<OrdersController>(
+          () => OrdersController(Get.find<OrdersRepository>()),
+          fenix: false, // penting: jangan hidupin lagi otomatis
         );
       }),
     ),

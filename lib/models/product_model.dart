@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ProductModel {
   final String id;
   final String sellerId;
+  final String sellerUid;
   final String title;
   final String description;
   final String categoryId;
@@ -24,6 +25,7 @@ class ProductModel {
   ProductModel({
     required this.id,
     required this.sellerId,
+    required this.sellerUid,
     required this.title,
     required this.description,
     required this.categoryId,
@@ -50,6 +52,7 @@ class ProductModel {
     return ProductModel(
       id: doc.id, // ✅ SELALU pakai doc.id
       sellerId: data['seller_id'] ?? '',
+      sellerUid: (data['seller_uid'] ?? '').toString(),
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       categoryId: data['category_id'] ?? '',
@@ -80,6 +83,7 @@ class ProductModel {
   Map<String, dynamic> toMap() {
     return {
       'seller_id': sellerId,
+      'seller_uid': sellerUid,
       'title': title,
       'description': description,
       'category_id': categoryId,

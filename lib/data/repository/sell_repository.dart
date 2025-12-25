@@ -67,6 +67,13 @@ class SellRepository {
     final oldSnap = await docRef.get();
     final oldData = oldSnap.data() ?? {};
 
+    if (!data.containsKey('seller_uid') && oldData.containsKey('seller_uid')) {
+      data['seller_uid'] = oldData['seller_uid'];
+    }
+    if (!data.containsKey('seller_id') && oldData.containsKey('seller_id')) {
+      data['seller_id'] = oldData['seller_id'];
+    }
+
     final hasPromoActive = data.containsKey('promo_shipping_active');
     final hasPromoAmount = data.containsKey('promo_shipping_amount');
 

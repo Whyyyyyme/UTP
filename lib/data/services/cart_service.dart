@@ -1,25 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CartService {
   CartService(this._db);
 
   final FirebaseFirestore _db;
 
-  CollectionReference<Map<String, dynamic>> _itemsRef(String viewerId) =>
-      _db.collection('carts').doc(viewerId).collection('items');
-
-  // ===== STREAMS =====
-  Stream<QuerySnapshot<Map<String, dynamic>>> cartItemsStream(String viewerId) {
-    return _itemsRef(
-      viewerId,
-    ).orderBy('created_at', descending: true).snapshots();
+  // ✅ selalu pakai AUTH UID sebagai docId carts
+  String authUid() {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) {
+      throw Exception('Belum login (auth uid kosong)');
+    }
+    return uid;
   }
 
-  Stream<bool> isInCartStream({
-    required String viewerId,
-    required String productId,
-  }) {
-    return _itemsRef(viewerId).doc(productId).snapshots().map((d) => d.exists);
+  CollectionReference<Map<String, dynamic>> _itemsRef() =>
+      _db.collection('carts').doc(authUid()).collection('items');
+
+  // ===== STREAMS =====
+  Stream<QuerySnapshot<Map<String, dynamic>>> cartItemsStream() {
+    return _itemsRef().orderBy('created_at', descending: true).snapshots();
+  }
+
+  Stream<bool> isInCartStream({required String productId}) {
+    return _itemsRef().doc(productId).snapshots().map((d) => d.exists);
   }
 
   // ===== PRODUCT READ =====
@@ -29,36 +34,27 @@ class CartService {
 
   // ===== CART WRITE =====
   Future<void> setCartItem({
-    required String viewerId,
     required String productId,
     required Map<String, dynamic> data,
   }) {
-    return _itemsRef(
-      viewerId,
-    ).doc(productId).set(data, SetOptions(merge: true));
+    return _itemsRef().doc(productId).set(data, SetOptions(merge: true));
   }
 
-  Future<void> deleteCartItem({
-    required String viewerId,
-    required String productId,
-  }) {
-    return _itemsRef(viewerId).doc(productId).delete();
+  Future<void> deleteCartItem({required String productId}) {
+    return _itemsRef().doc(productId).delete();
   }
 
-  // ===== BULK OPS (murni firestore) =====
+  // ===== BULK OPS =====
 
-  /// Ambil semua doc item berdasarkan sellerId (untuk delete per seller)
   Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> getItemsBySeller({
-    required String viewerId,
     required String sellerId,
   }) async {
-    final snap = await _itemsRef(
-      viewerId,
-    ).where('seller_id', isEqualTo: sellerId).get();
+    final snap = await _itemsRef()
+        .where('seller_id', isEqualTo: sellerId)
+        .get();
     return snap.docs;
   }
 
-  /// Delete banyak doc pakai batch (dipakai clearCart / deleteBySeller)
   Future<void> batchDeleteDocs(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) async {
@@ -69,13 +65,28 @@ class CartService {
     await batch.commit();
   }
 
-  Future<void> clearCart(String viewerId) async {
-    final docs = await _itemsRef(viewerId).get().then((s) => s.docs);
+  Future<void> clearCart() async {
+    final docs = await _itemsRef().get().then((s) => s.docs);
     if (docs.isEmpty) return;
     await batchDeleteDocs(docs);
   }
 
-  Future<DocumentSnapshot<Map<String, dynamic>>> userDoc(String uid) {
-    return _db.collection('users').doc(uid).get();
+  Future<DocumentSnapshot<Map<String, dynamic>>> userDoc() {
+    return _db.collection('users').doc(authUid()).get();
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> userDocByUid(
+    String authUid,
+  ) async {
+    final q = await _db
+        .collection('users')
+        .where('uid', isEqualTo: authUid)
+        .limit(1)
+        .get();
+
+    if (q.docs.isEmpty) {
+      throw Exception('User dengan uid=$authUid tidak ditemukan');
+    }
+    return q.docs.first.reference.get();
   }
 }

@@ -13,6 +13,7 @@ class ShopProfileService {
         ? _db
               .collection('products')
               .where('seller_id', isEqualTo: userId)
+              .where('status', isEqualTo: 'published')
               .orderBy('created_at', descending: true)
         : _db
               .collection('products')

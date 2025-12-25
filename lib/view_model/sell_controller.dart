@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -444,7 +445,19 @@ class SellController extends GetxController {
     try {
       isSaving.value = true;
 
-      final sellerId = currentUser.id;
+      final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (authUid.isEmpty) {
+        Get.snackbar('Error', 'Auth uid kosong, login ulang');
+        return false;
+      }
+      final sellerId = currentUser.id; // docId user versi app kamu
+
+      final sellerUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (sellerUid.isEmpty) {
+        Get.snackbar('Error', 'Auth UID kosong, login ulang ya');
+        return false;
+      }
+
       final now = Timestamp.now();
 
       final docRef = await _repo.resolveDocRef(
@@ -469,6 +482,7 @@ class SellController extends GetxController {
       final product = ProductModel(
         id: docRef.id,
         sellerId: sellerId,
+        sellerUid: sellerUid,
         title: titleC.text.trim(),
         description: descC.text.trim(),
         categoryId: categoryId.value,
@@ -490,7 +504,9 @@ class SellController extends GetxController {
             : 0,
       );
 
-      await _repo.saveProduct(docRef: docRef, data: product.toMap());
+      final payload = product.toMap();
+
+      await _repo.saveProduct(docRef: docRef, data: payload);
 
       Get.snackbar(
         'Berhasil',
