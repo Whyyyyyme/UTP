@@ -5,7 +5,6 @@ class HomeRepository {
   final HomeService _service;
   HomeRepository(this._service);
 
-  // ✅ cart count = snap.size (lebih aman)
   Stream<int> cartCountStream(String viewerId) {
     if (viewerId.isEmpty) return Stream.value(0);
     return _service.cartItemsStream(viewerId).map((snap) => snap.size);
@@ -15,7 +14,6 @@ class HomeRepository {
     return _service.hotItemsStream();
   }
 
-  // ✅ rekomendasi sellerId: ambil dari produk terbaru, unique, max 8
   Stream<List<String>> recommendedSellerIdsStream() {
     return _service.latestPublishedProductsStream().map((snap) {
       final ids = <String>{};
@@ -28,7 +26,6 @@ class HomeRepository {
     });
   }
 
-  // ✅ thumbs seller: output List<Map> biar UI gampang
   Stream<List<Map<String, dynamic>>> sellerThumbs(String sellerId) {
     return _service
         .sellerThumbsStream(sellerId)

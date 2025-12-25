@@ -1,6 +1,7 @@
 // lib/pages/checkout/checkout_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:prelovedly/models/checkout_item_model.dart';
 import 'package:prelovedly/models/shipping_method_model.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/view_model/address_controller.dart';
@@ -50,7 +51,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final picked = await Get.toNamed(
       Routes.selectShipping,
-      arguments: {'sellerId': sellerId},
+      arguments: {
+        'sellerId': sellerId,
+        'promo': vm.promoShippingDiscount(sellerId),
+      },
     );
 
     if (picked is! ShippingMethodModel) return;
@@ -122,13 +126,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     ),
 
                   if (vm.items.isNotEmpty) ...[
-                    _ItemRow(
-                      title: vm.items.first.title,
-                      size: vm.items.first.size,
-                      imageUrl: vm.items.first.imageUrl,
-                      priceFinal: rp(vm.items.first.priceFinal),
-                      priceOriginal: rp(vm.items.first.priceOriginal),
-                    ),
+                    _CheckoutItemsCarousel(items: vm.items, rp: rp),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -292,7 +290,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
               width: double.infinity,
               height: 54,
               child: ElevatedButton(
-                onPressed: vm.canPay ? () async => vm.payNow(uid) : null,
+                onPressed:
+                    vm.items.isNotEmpty &&
+                        vm.address.isNotEmpty &&
+                        (vm.shipping['method'] ?? '').toString().isNotEmpty
+                    ? () {
+                        vm.startPaymentDeadline(); // ✅ set now + 1 jam
+                        Get.toNamed(Routes.checkoutPayment);
+                      }
+                    : null,
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
@@ -419,6 +426,72 @@ class _ItemRow extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CheckoutItemsCarousel extends StatefulWidget {
+  final List<CheckoutItemModel> items;
+  final String Function(dynamic) rp;
+
+  const _CheckoutItemsCarousel({required this.items, required this.rp});
+
+  @override
+  State<_CheckoutItemsCarousel> createState() => _CheckoutItemsCarouselState();
+}
+
+class _CheckoutItemsCarouselState extends State<_CheckoutItemsCarousel> {
+  final PageController _page = PageController();
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _page.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.items;
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 78, // tinggi area item preview
+          child: PageView.builder(
+            controller: _page,
+            itemCount: items.length,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (_, i) {
+              final it = items[i];
+              return _ItemRow(
+                title: it.title,
+                size: it.size,
+                imageUrl: it.imageUrl,
+                priceFinal: widget.rp(it.priceFinal),
+                priceOriginal: widget.rp(it.priceOriginal),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(items.length, (i) {
+            final active = i == _index;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: active ? 18 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: active ? Colors.black : Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            );
+          }),
         ),
       ],
     );

@@ -179,7 +179,7 @@ class ProfilePage extends StatelessWidget {
               icon: Icons.message_outlined,
               title: 'Pesanan',
               onTap: () {
-                // TODO: halaman riwayat / daftar pesanan
+                Get.toNamed(Routes.orders);
               },
             ),
 

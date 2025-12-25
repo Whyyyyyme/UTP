@@ -10,12 +10,12 @@ class CartController extends GetxController {
 
   Stream<QuerySnapshot<Map<String, dynamic>>> cartItemsStream(
     String viewerId,
-  ) => repo.cartItemsStream(viewerId);
+  ) => repo.cartItemsStream();
 
   Stream<bool> isInCartStream({
     required String viewerId,
     required String productId,
-  }) => repo.isInCartStream(viewerId: viewerId, productId: productId);
+  }) => repo.isInCartStream(productId: productId);
 
   Future<(bool, String)> addToCart({
     required String viewerId,
@@ -25,7 +25,7 @@ class CartController extends GetxController {
     if (productId.isEmpty) return (false, 'productId kosong');
 
     try {
-      await repo.addToCart(viewerId: viewerId, productId: productId);
+      await repo.addToCart(productId: productId);
       return (true, 'Berhasil ditambahkan ke keranjang');
     } catch (e) {
       return (false, e.toString());
@@ -40,7 +40,7 @@ class CartController extends GetxController {
     if (productId.isEmpty) return (false, 'productId kosong');
 
     try {
-      await repo.removeFromCart(viewerId: viewerId, productId: productId);
+      await repo.removeFromCart(productId: productId);
       return (true, 'Dihapus dari keranjang');
     } catch (e) {
       return (false, e.toString());
@@ -57,7 +57,6 @@ class CartController extends GetxController {
 
     try {
       await repo.toggleCart(
-        viewerId: viewerId,
         productId: productId,
         currentlyInCart: currentlyInCart,
       );
@@ -74,7 +73,7 @@ class CartController extends GetxController {
     if (viewerId.isEmpty) return (false, 'Kamu belum login');
 
     try {
-      await repo.clearCart(viewerId);
+      await repo.clearCart();
       return (true, 'Keranjang dikosongkan');
     } catch (e) {
       return (false, e.toString());
@@ -90,7 +89,7 @@ class CartController extends GetxController {
     if (sellerId.isEmpty) return (false, 'sellerId kosong');
 
     try {
-      await repo.deleteAllBySeller(viewerId: viewerId, sellerId: sellerId);
+      await repo.deleteAllBySeller(sellerId: sellerId);
       return (true, 'Item seller dihapus');
     } catch (e) {
       return (false, e.toString());

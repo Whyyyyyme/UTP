@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/checkout_item_model.dart';
 import '../services/checkout_service.dart';
 
@@ -29,31 +30,58 @@ class CheckoutRepository {
   }
 
   Future<void> createOrder({
-    required String buyerId,
+    required String buyerId, // boleh ada, tapi kita pake auth uid
     required List<CheckoutItemModel> items,
     required Map<String, dynamic> address,
     required Map<String, dynamic> shipping,
     required Map<String, dynamic> payment,
   }) async {
+    final buyerUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (buyerUid.isEmpty) throw Exception('Kamu belum login');
+
     final now = FieldValue.serverTimestamp();
+    int _toInt(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
 
     final subtotal = items.fold<int>(0, (sum, it) => sum + it.priceFinal);
-    final shippingFee = (shipping['fee'] is int)
-        ? shipping['fee'] as int
-        : int.tryParse('${shipping['fee']}') ?? 0;
+    final shippingFeeFinal = _toInt(shipping['fee']);
+    final total = subtotal + shippingFeeFinal;
 
-    final total = subtotal + shippingFee;
+    // seller_id (docId) optional
+    final sellerIds = items
+        .map((e) => e.sellerId)
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
 
-    final orderRef = _service.ordersRef().doc(); // auto id
+    // ✅ INI YANG DIPAKE RULES + QUERY SOLD
+    final sellerUids = items
+        .map((e) => e.sellerUid)
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
+    if (sellerUids.isEmpty) {
+      throw Exception(
+        'seller_uid kosong di cart item (produk belum punya seller_uid)',
+      );
+    }
+
+    final orderRef = _service.ordersRef().doc();
     final batch = _service.db.batch();
 
     batch.set(orderRef, {
       'order_id': orderRef.id,
-      'buyer_id': buyerId,
-      'status': 'pending_payment', // awal
+      'buyer_id': buyerUid,
+      'seller_uids': sellerUids,
+
+      // optional (buat UI/debug)
+      'seller_ids': sellerIds,
+
+      'status': 'paid',
       'subtotal': subtotal,
-      'shipping_fee': shippingFee,
+      'shipping_fee': shippingFeeFinal,
       'total': total,
+      'promo_discount': _toInt(shipping['promo_discount']),
+      'shipping_fee_original': _toInt(shipping['fee_original']),
       'address': address,
       'shipping': shipping,
       'payment': payment,
@@ -61,12 +89,17 @@ class CheckoutRepository {
       'updated_at': now,
     });
 
-    // simpan item item di subcollection: orders/{orderId}/items
     for (final it in items) {
       final itemRef = orderRef.collection('items').doc(it.productId);
+
       batch.set(itemRef, {
+        'order_id': orderRef.id,
+        'buyer_id': buyerUid,
         'product_id': it.productId,
+
         'seller_id': it.sellerId,
+        'seller_uids': sellerUids,
+
         'title': it.title,
         'size': it.size,
         'image_url': it.imageUrl,
@@ -78,17 +111,16 @@ class CheckoutRepository {
         'created_at': now,
       });
 
-      // OPTIONAL: tandai produk jadi reserved / sold_pending
-      batch.set(_service.productRef(it.productId), {
-        'status': 'reserved',
-        'reserved_by': buyerId,
-        'reserved_at': now,
+      // ✅ sold_to juga auth uid
+      batch.update(_service.productRef(it.productId), {
+        'status': 'sold',
+        'sold_to': buyerUid,
+        'sold_at': now,
         'updated_at': now,
-      }, SetOptions(merge: true));
+      });
     }
 
-    // clear cart
-    final cartSnap = await _service.cartItemsRef(buyerId).get();
+    final cartSnap = await _service.cartItemsRef(buyerUid).get();
     for (final d in cartSnap.docs) {
       batch.delete(d.reference);
     }

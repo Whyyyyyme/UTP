@@ -1,42 +1,44 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:prelovedly/data/repository/chat_repository.dart';
 import 'package:prelovedly/data/services/chat_service.dart';
 import '../services/cart_service.dart';
 
 class CartRepository {
   CartRepository(this._service);
-
   final CartService _service;
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> cartItemsStream(
-    String viewerId,
-  ) => _service.cartItemsStream(viewerId);
+  Stream<QuerySnapshot<Map<String, dynamic>>> cartItemsStream() =>
+      _service.cartItemsStream();
 
-  Stream<bool> isInCartStream({
-    required String viewerId,
-    required String productId,
-  }) => _service.isInCartStream(viewerId: viewerId, productId: productId);
+  Stream<bool> isInCartStream({required String productId}) =>
+      _service.isInCartStream(productId: productId);
 
-  Future<void> addToCart({
-    required String viewerId,
-    required String productId,
-  }) async {
-    if (viewerId.isEmpty) throw Exception('viewerId kosong');
+  Future<void> addToCart({required String productId}) async {
     if (productId.isEmpty) throw Exception('productId kosong');
 
-    // ===================== ambil data produk =====================
+    final viewerUid = _service.authUid();
+    if (viewerUid.isEmpty) throw Exception('Kamu belum login');
+
+    // ====== product ======
     final prodSnap = await _service.productDoc(productId);
     if (!prodSnap.exists) throw Exception('Produk tidak ditemukan');
 
     final productData = prodSnap.data() ?? {};
-    final status = (productData['status'] ?? '').toString();
+    final status = (productData['status'] ?? '').toString().trim();
     if (status.isNotEmpty && status != 'published') {
       throw Exception('Produk belum tersedia');
     }
 
-    final sellerId = (productData['seller_id'] ?? '').toString();
+    final sellerUid = (productData['seller_uid'] ?? '').toString().trim();
+    if (sellerUid.isEmpty) {
+      // 🔥 ini biang masalah sellerId kamu: produk gak punya seller_uid
+      throw Exception('Produk belum punya seller_uid (wajib)');
+    }
+
+    final sellerId = (productData['seller_id'] ?? '')
+        .toString()
+        .trim(); // cuma buat display/debug, jangan dipakai fetch user
 
     final priceOriginal = (productData['price'] is int)
         ? productData['price'] as int
@@ -51,30 +53,33 @@ class CartRepository {
         ? (productData['image_urls'] as List).map((e) => '$e').toList()
         : <String>[];
 
-    // ===================== ✅ promo ongkir dari produk =====================
     final promoShippingActive =
         (productData['promo_shipping_active'] ?? false) == true;
     final promoShippingAmount = (productData['promo_shipping_amount'] is int)
         ? productData['promo_shipping_amount'] as int
         : int.tryParse('${productData['promo_shipping_amount']}') ?? 0;
 
-    // ===================== ambil data seller =====================
-    final sellerSnap = await _service.userDoc(sellerId);
-    final sellerData = sellerSnap.data() ?? {};
-    final sellerName =
-        (sellerData['name'] ??
-                sellerData['username'] ??
-                sellerData['displayName'] ??
-                '')
-            .toString();
+    // ====== seller by UID ONLY ======
+    String sellerName = '';
+    try {
+      final sellerSnap = await _service.userDocByUid(sellerUid);
+      final sellerData = sellerSnap.data() ?? {};
+      sellerName =
+          (sellerData['name'] ??
+                  sellerData['username'] ??
+                  sellerData['displayName'] ??
+                  '')
+              .toString();
+    } catch (_) {
+      // kalau gagal baca user, tetap jalan
+    }
 
-    // ===================== cek offer accepted untuk produk ini =====================
+    // ====== offer check (peerId harus UID) ======
     int finalPrice = priceOriginal;
     String offerStatus = '';
     int offerPrice = 0;
 
     try {
-      // Pastikan ChatService & ChatRepository tersedia
       if (!Get.isRegistered<ChatService>()) {
         Get.lazyPut(() => ChatService(FirebaseFirestore.instance), fenix: true);
       }
@@ -85,8 +90,8 @@ class CartRepository {
       final chatRepo = Get.find<ChatRepository>();
 
       final tOffer = await chatRepo.findOfferThreadForProduct(
-        uid: viewerId,
-        peerId: sellerId,
+        uid: viewerUid,
+        peerId: sellerUid, // ✅ FIX: pake UID, bukan sellerId
         productId: productId,
       );
 
@@ -101,23 +106,20 @@ class CartRepository {
         offerStatus = st;
         offerPrice = tOffer?.offer?.offerPrice ?? 0;
       }
-    } catch (_) {
-      // kalau gagal cek offer, tetap pakai harga asli (biar cart tetap jalan)
-    }
+    } catch (_) {}
 
-    // ===================== simpan cart item (1 schema) =====================
+    // ====== write cart ======
     await _service.setCartItem(
-      viewerId: viewerId,
       productId: productId,
       data: {
         'product_id': productId,
-        'seller_id': sellerId,
-        'seller_name': sellerName.isEmpty ? sellerId : sellerName,
+        'buyer_uid': viewerUid,
 
-        // ✅ harga yang dipakai di keranjang
+        'seller_uid': sellerUid, // 🔥 ini yang dipakai rules/orders
+        'seller_id': sellerId, // opsional aja
+        'seller_name': sellerName.isEmpty ? sellerUid : sellerName,
+
         'price': finalPrice,
-
-        // ✅ simpan harga asli & info offer (opsional untuk UI)
         'price_original': priceOriginal,
         'offer_status': offerStatus,
         'offer_price': offerPrice,
@@ -128,7 +130,6 @@ class CartRepository {
         'thumbnail_url': thumb,
         'image_urls': imageUrls,
 
-        // ✅ NEW: promo ongkir ikut masuk ke cart
         'promo_shipping_active': promoShippingActive,
         'promo_shipping_amount': promoShippingAmount,
 
@@ -138,48 +139,29 @@ class CartRepository {
     );
   }
 
-  Future<void> removeFromCart({
-    required String viewerId,
-    required String productId,
-  }) async {
-    if (viewerId.isEmpty) throw Exception('viewerId kosong');
+  Future<void> removeFromCart({required String productId}) async {
     if (productId.isEmpty) throw Exception('productId kosong');
-
-    await _service.deleteCartItem(viewerId: viewerId, productId: productId);
+    await _service.deleteCartItem(productId: productId);
   }
 
   Future<void> toggleCart({
-    required String viewerId,
     required String productId,
     required bool currentlyInCart,
   }) async {
     if (currentlyInCart) {
-      await removeFromCart(viewerId: viewerId, productId: productId);
+      await removeFromCart(productId: productId);
     } else {
-      await addToCart(viewerId: viewerId, productId: productId);
+      await addToCart(productId: productId);
     }
   }
 
-  Future<void> clearCart(String viewerId) {
-    if (viewerId.isEmpty) throw Exception('viewerId kosong');
-    return _service.clearCart(viewerId);
-  }
+  Future<void> clearCart() => _service.clearCart();
 
-  /// ✅ Hapus semua item dalam cart untuk seller tertentu
-  Future<void> deleteAllBySeller({
-    required String viewerId,
-    required String sellerId,
-  }) async {
-    if (viewerId.isEmpty) throw Exception('viewerId kosong');
+  Future<void> deleteAllBySeller({required String sellerId}) async {
+    // kalau kamu masih butuh delete by seller, pakai seller_uid yang ada di cart item
     if (sellerId.isEmpty) return;
-
-    final docs = await _service.getItemsBySeller(
-      viewerId: viewerId,
-      sellerId: sellerId,
-    );
-
+    final docs = await _service.getItemsBySeller(sellerId: sellerId);
     if (docs.isEmpty) return;
-
     await _service.batchDeleteDocs(docs);
   }
 }

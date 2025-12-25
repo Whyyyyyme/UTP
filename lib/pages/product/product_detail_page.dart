@@ -51,6 +51,9 @@ class ProductDetailPage extends StatelessWidget {
         final String sellerId =
             (data['seller_id'] ?? controller.sellerIdArg.value).toString();
 
+        final String status = (data['status'] ?? '').toString();
+        final bool isSold = status == 'sold';
+
         final List<String> images = ((data['image_urls'] as List?) ?? [])
             .map((e) => e.toString())
             .where((e) => e.isNotEmpty)
@@ -109,20 +112,31 @@ class ProductDetailPage extends StatelessWidget {
                               sellerId: sellerId,
                               isMe: controller.isMe.value,
                               fetchSeller: controller.getSellerUser,
-                              onMessage: () async {
-                                final cover = images.isNotEmpty
-                                    ? images.first
-                                    : '';
 
-                                await controller.openChatFromProduct(
-                                  sellerId: sellerId,
-                                  productId: productId,
-                                  productTitle: title,
-                                  productImage: cover,
-                                );
-                              },
+                              // ✅ jika sold, jangan bisa message dari sini
+                              onMessage: isSold
+                                  ? () {
+                                      Get.snackbar(
+                                        'Info',
+                                        'Produk ini sudah terjual',
+                                      );
+                                    }
+                                  : () async {
+                                      final cover = images.isNotEmpty
+                                          ? images.first
+                                          : '';
+
+                                      await controller.openChatFromProduct(
+                                        sellerId: sellerId,
+                                        productId: productId,
+                                        productTitle: title,
+                                        productImage: cover,
+                                      );
+                                    },
+
                               onSeeProfile: () {},
                             ),
+
                             const SizedBox(height: 14),
 
                             Text(
@@ -308,6 +322,47 @@ class ProductDetailPage extends StatelessWidget {
                   right: 0,
                   bottom: 0,
                   child: Obx(() {
+                    if (isSold) {
+                      return Container(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 18,
+                              color: Colors.black.withOpacity(0.10),
+                            ),
+                          ],
+                        ),
+                        child: SafeArea(
+                          top: false,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.06),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'Produk sudah terjual',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
                     final tOffer =
                         controller.offerThread.value; // offer khusus produk ini
                     final tSeller = controller
