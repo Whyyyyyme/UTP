@@ -30,6 +30,7 @@ class HomePage extends StatelessWidget {
 
       return Scaffold(
         appBar: current == 0 ? _HomeAppBar(nav: nav) : null,
+        extendBody: true,
         body: IndexedStack(index: current, children: pages),
         bottomNavigationBar: AnimatedBottomNavBarUTP(
           currentIndex: current,
@@ -62,15 +63,17 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 0,
       title: Padding(
         padding: const EdgeInsets.only(left: 12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: () => nav.changeTab(1),
+        child: Hero(
+        tag: 'search_bar_anim', // Tag unik untuk animasi
+        child: Material( // Tambahkan Material agar Hero tidak pecah saat transisi
+          color: Colors.transparent,
           child: Container(
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: Colors.grey.shade200,
               borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.black, width: 1.2),
             ),
             child: const Row(
               children: [
@@ -78,7 +81,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Cari items dan users',
+                    'Cari items, brand, atau kategori',
                     style: TextStyle(color: Colors.black54, fontSize: 14),
                   ),
                 ),
@@ -86,6 +89,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
         ),
+      ),
       ),
       actions: [
         Padding(
