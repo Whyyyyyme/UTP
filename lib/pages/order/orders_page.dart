@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/utils/rupiah.dart';
 
 import '../../view_model/orders_controller.dart';
 import '../../models/order_model.dart';
@@ -87,6 +89,12 @@ class OrdersPage extends StatelessWidget {
                   buttonText: 'Mulai belanja',
                   assetPath: 'assets/eyes.png',
                   onTap: () => Get.toNamed(Routes.home),
+                  showReceiveButton: true,
+                  onReceive: (orderId) async {
+                    await vm.markAsReceived(
+                      orderId,
+                    ); // pastikan method ini ada di OrdersController
+                  },
                 );
               }),
             ],
@@ -166,6 +174,8 @@ class _OrdersTab extends StatelessWidget {
   final String buttonText;
   final String assetPath;
   final VoidCallback onTap;
+  final bool showReceiveButton;
+  final Future<void> Function(String orderId)? onReceive;
 
   const _OrdersTab({
     required this.list,
@@ -174,10 +184,14 @@ class _OrdersTab extends StatelessWidget {
     required this.buttonText,
     required this.assetPath,
     required this.onTap,
+    this.showReceiveButton = false,
+    this.onReceive,
   });
 
   @override
   Widget build(BuildContext context) {
+    final vm = Get.find<OrdersController>();
+
     if (list.isEmpty) {
       return Center(
         child: Padding(
@@ -245,36 +259,158 @@ class _OrdersTab extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final o = list[i];
+        final sellerUid = o.sellerUids.isNotEmpty
+            ? o.sellerUids.first.toString()
+            : '';
+
+        vm.ensureOrderItemPreview(o.id);
+        vm.ensureUserPreview(sellerUid);
+
+        final item = vm.orderItemPreview[o.id] ?? {};
+        final title = (item['title'] ?? 'Produk').toString();
+        final imageUrl = (item['image_url'] ?? '').toString();
+
+        final seller = vm.userPreview[sellerUid] ?? {};
+        final sellerName = (seller['nama'] ?? '').toString();
+        final sellerUsername = (seller['username'] ?? '').toString();
+        final foto = (seller['foto_profil_url'] ?? '').toString();
+
+        final dt = o.createdAt?.toDate();
+        final dateText = dt == null
+            ? ''
+            : DateFormat('dd MMM yyyy', 'id_ID').format(dt);
+
+        final canReceive = showReceiveButton && o.status != 'received';
+
         return Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.black12),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Row(
+          child: Column(
             children: [
-              const Icon(Icons.receipt_long_outlined),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Order #${o.id}',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      color: Colors.grey.shade200,
+                      child: imageUrl.isNotEmpty
+                          ? Image.network(imageUrl, fit: BoxFit.cover)
+                          : const Icon(
+                              Icons.image_outlined,
+                              color: Colors.black26,
+                            ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Status: ${o.status}',
-                      style: const TextStyle(color: Colors.black54),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          dateText.isEmpty
+                              ? 'Order #${o.id}'
+                              : '$dateText • Order #${o.id}',
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.grey.shade300,
+                              backgroundImage: foto.isNotEmpty
+                                  ? NetworkImage(foto)
+                                  : null,
+                              child: foto.isEmpty
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 14,
+                                      color: Colors.black45,
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                sellerUsername.isNotEmpty
+                                    ? '$sellerName • @$sellerUsername'
+                                    : (sellerName.isNotEmpty
+                                          ? sellerName
+                                          : sellerUid),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Status: ${o.status}',
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    rupiah(o.total),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+
+              if (showReceiveButton) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: ElevatedButton(
+                    onPressed: canReceive
+                        ? () async {
+                            if (onReceive != null) await onReceive!(o.id);
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: Colors.black,
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: Colors.grey.shade700,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      o.status == 'received'
+                          ? 'Pesanan sudah diterima'
+                          : 'Pesanan diterima',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
                 ),
-              ),
-              Text(
-                'Rp ${o.total}',
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
+              ],
             ],
           ),
         );

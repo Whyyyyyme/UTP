@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:prelovedly/utils/rupiah.dart';
 import 'package:prelovedly/view_model/auth_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/view_model/session_controller.dart';
+import 'package:prelovedly/view_model/wallet_orders_controller.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -11,6 +12,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authC = Get.find<AuthController>();
+    final walletC = Get.find<WalletOrdersController>();
 
     return Obx(() {
       final user = authC.user.value;
@@ -161,17 +163,20 @@ class ProfilePage extends StatelessWidget {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Rp 1.000.000', // sementara masih statis
-                    style: TextStyle(color: Colors.grey[600]),
+                  Obx(
+                    () => Text(
+                      rupiah(
+                        walletC.availableBalance.value,
+                      ), // dari orders received
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   const Icon(Icons.chevron_right, color: Colors.grey),
                 ],
               ),
-              onTap: () {
-                // TODO: nanti arahkan ke halaman wallet
-              },
+
+              onTap: () => Get.toNamed(Routes.wallet),
             ),
 
             // Pesanan

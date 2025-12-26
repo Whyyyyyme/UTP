@@ -54,6 +54,7 @@ abstract class Routes {
   static const checkoutPayment = '/checkout-payment';
   static const checkoutSuccess = '/checkout-success';
   static const orders = '/order';
+  static const wallet = '/wallet';
 
   // Admin
   static const adminDashboard = '/admin-dashboard';

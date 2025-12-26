@@ -58,6 +58,7 @@ import 'package:prelovedly/pages/sell_pages/edit_draft_page.dart';
 import 'package:prelovedly/pages/sell_pages/sell_page.dart';
 import 'package:prelovedly/pages/sell_pages/style_picker_page.dart';
 import 'package:prelovedly/pages/profile_pages/setting/seller_shipping_page.dart';
+import 'package:prelovedly/pages/wallet/wallet_page.dart';
 import 'package:prelovedly/view_model/cart_controller.dart';
 import 'package:prelovedly/view_model/chat_controller.dart';
 import 'package:prelovedly/view_model/checkout_controller.dart';
@@ -75,6 +76,7 @@ import 'package:prelovedly/view_model/product_detail_controller.dart';
 import 'package:prelovedly/view_model/register_controller.dart';
 import 'package:prelovedly/view_model/shipping_controller.dart';
 import 'package:prelovedly/view_model/shop_profile_controller.dart';
+import 'package:prelovedly/view_model/wallet_orders_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 import 'app_routes.dart';
@@ -219,6 +221,16 @@ class AppPages {
     if (!Get.isRegistered<InboxController>()) {
       Get.put<InboxController>(
         InboxController(Get.find<InboxRepository>()),
+        permanent: true,
+      );
+    }
+
+    if (!Get.isRegistered<OrdersRepository>()) {
+      Get.lazyPut<OrdersRepository>(() => OrdersRepository(), fenix: true);
+    }
+    if (!Get.isRegistered<WalletOrdersController>()) {
+      Get.put<WalletOrdersController>(
+        WalletOrdersController(Get.find<OrdersRepository>()),
         permanent: true,
       );
     }
@@ -877,6 +889,24 @@ class AppPages {
           () => OrdersController(Get.find<OrdersRepository>()),
           fenix: false, // penting: jangan hidupin lagi otomatis
         );
+      }),
+    ),
+
+    GetPage(
+      name: Routes.wallet,
+      page: () => const WalletPage(),
+      binding: BindingsBuilder(() {
+        AppPages.ensureGlobals();
+
+        if (!Get.isRegistered<OrdersRepository>()) {
+          Get.lazyPut<OrdersRepository>(() => OrdersRepository(), fenix: true);
+        }
+        if (!Get.isRegistered<WalletOrdersController>()) {
+          Get.put<WalletOrdersController>(
+            WalletOrdersController(Get.find<OrdersRepository>()),
+            permanent: false,
+          );
+        }
       }),
     ),
 

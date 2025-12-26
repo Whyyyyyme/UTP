@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
@@ -9,6 +10,7 @@ class OrdersController extends GetxController {
   OrdersController(this._repo);
 
   final OrdersRepository _repo;
+  final _db = FirebaseFirestore.instance;
 
   final isLoading = false.obs;
 
@@ -69,6 +71,12 @@ class OrdersController extends GetxController {
         .listen(
           (list) {
             sold.assignAll(list);
+            for (final o in list.take(10)) {
+              ensureOrderPreview(o.id);
+              if (o.sellerUids.isNotEmpty)
+                ensureUserPreview(o.sellerUids.first.toString());
+            }
+
             _soldDone = true;
             _finishLoading();
           },
@@ -86,6 +94,12 @@ class OrdersController extends GetxController {
         .listen(
           (list) {
             bought.assignAll(list);
+            for (final o in list.take(10)) {
+              // ambil 10 dulu biar ringan
+              ensureOrderPreview(o.id);
+              if (o.sellerUids.isNotEmpty)
+                ensureUserPreview(o.sellerUids.first.toString());
+            }
             _boughtDone = true;
             _finishLoading();
           },
@@ -116,5 +130,61 @@ class OrdersController extends GetxController {
     _authSub?.cancel();
     _cancelDataStreams();
     super.onClose();
+  }
+
+  Future<void> markAsReceived(String orderId) async {
+    try {
+      isLoading.value = true;
+      await _repo.markAsReceived(orderId);
+      Get.snackbar('Sukses', '“Pesanan diterima. Status order diperbarui.”');
+    } catch (e) {
+      Get.snackbar('Gagal', e.toString());
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // cache
+  final orderPreview = <String, Map<String, dynamic>>{}.obs;
+  final userPreview = <String, Map<String, dynamic>>{}.obs;
+  final orderItemPreview = <String, Map<String, dynamic>>{}.obs;
+
+  Future<void> ensureOrderPreview(String orderId) async {
+    if (orderPreview.containsKey(orderId)) return;
+
+    final snap = await _db
+        .collection('orders')
+        .doc(orderId)
+        .collection('items')
+        .orderBy('created_at', descending: true)
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) {
+      orderPreview[orderId] = {};
+      return;
+    }
+    orderPreview[orderId] = snap.docs.first.data();
+  }
+
+  Future<void> ensureOrderItemPreview(String orderId) async {
+    if (orderItemPreview.containsKey(orderId)) return;
+
+    final q = await _db
+        .collection('orders')
+        .doc(orderId)
+        .collection('items')
+        .orderBy('created_at', descending: true)
+        .limit(1)
+        .get();
+
+    orderItemPreview[orderId] = q.docs.isEmpty ? {} : q.docs.first.data();
+  }
+
+  Future<void> ensureUserPreview(String uid) async {
+    if (uid.isEmpty || userPreview.containsKey(uid)) return;
+
+    final doc = await _db.collection('users').doc(uid).get();
+    userPreview[uid] = doc.data() ?? {};
   }
 }
