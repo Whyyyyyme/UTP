@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -259,6 +261,7 @@ class _OrdersTab extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final o = list[i];
+        final isBusy = vm.receiving[o.id] == true;
         final sellerUid = o.sellerUids.isNotEmpty
             ? o.sellerUids.first.toString()
             : '';
@@ -280,7 +283,7 @@ class _OrdersTab extends StatelessWidget {
             ? ''
             : DateFormat('dd MMM yyyy', 'id_ID').format(dt);
 
-        final canReceive = showReceiveButton && o.status != 'received';
+        // final canReceive = showReceiveButton && o.status != 'received';
 
         return Container(
           padding: const EdgeInsets.all(14),
@@ -383,33 +386,57 @@ class _OrdersTab extends StatelessWidget {
 
               if (showReceiveButton) ...[
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 42,
-                  child: ElevatedButton(
-                    onPressed: canReceive
-                        ? () async {
-                            if (onReceive != null) await onReceive!(o.id);
-                          }
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0,
-                      backgroundColor: Colors.black,
-                      disabledBackgroundColor: Colors.grey.shade300,
-                      foregroundColor: Colors.white,
-                      disabledForegroundColor: Colors.grey.shade700,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+
+                if (o.status != 'received')
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: ElevatedButton(
+                      onPressed: (isBusy || onReceive == null)
+                          ? null
+                          : () async {
+                              await onReceive!(o.id);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isBusy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Pesanan diterima',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                    ),
+                  )
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: OutlinedButton(
+                      onPressed: () => showReviewSheet(context, order: o),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Beri ulasan',
+                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
-                    child: Text(
-                      o.status == 'received'
-                          ? 'Pesanan sudah diterima'
-                          : 'Pesanan diterima',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
                   ),
-                ),
               ],
             ],
           ),
@@ -417,4 +444,223 @@ class _OrdersTab extends StatelessWidget {
       },
     );
   }
+}
+
+Future<void> showReviewSheet(
+  BuildContext context, {
+  required OrderModel order,
+}) async {
+  final db = FirebaseFirestore.instance;
+
+  // seller uid untuk shop reviews
+  final sellerUid = order.sellerUids.isNotEmpty
+      ? order.sellerUids.first.toString()
+      : '';
+  if (sellerUid.isEmpty) {
+    Get.snackbar('Gagal', 'Seller tidak ditemukan di order ini');
+    return;
+  }
+
+  // Ambil 1 item order buat preview
+  final itemSnap = await db
+      .collection('orders')
+      .doc(order.id)
+      .collection('items')
+      .limit(1)
+      .get();
+
+  if (itemSnap.docs.isEmpty) {
+    Get.snackbar('Gagal', 'Item order tidak ditemukan');
+    return;
+  }
+
+  final item = itemSnap.docs.first.data();
+  final title = (item['title'] ?? 'Produk').toString();
+  final imageUrl = (item['image_url'] ?? '').toString();
+  final productId = (item['product_id'] ?? itemSnap.docs.first.id).toString();
+
+  final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  if (authUid.isEmpty) {
+    Get.snackbar('Gagal', 'Kamu belum login');
+    return;
+  }
+
+  // 1 review per order+product (ID unik)
+  final reviewId = '${order.id}_$productId';
+
+  // ✅ CEK: kalau review sudah ada, jangan buka sheet
+  final reviewRef = db
+      .collection('sellers')
+      .doc(sellerUid)
+      .collection('reviews')
+      .doc(reviewId);
+
+  final reviewSnap = await reviewRef.get();
+  if (reviewSnap.exists) {
+    Get.snackbar('Info', 'Kamu sudah memberi ulasan untuk item ini');
+    return;
+  }
+
+  final reviewC = TextEditingController();
+  int rating = 5;
+
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+    ),
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (ctx, setState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 10,
+              bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        color: Colors.grey.shade200,
+                        child: imageUrl.isNotEmpty
+                            ? Image.network(imageUrl, fit: BoxFit.cover)
+                            : const Icon(
+                                Icons.image_outlined,
+                                color: Colors.black26,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (i) {
+                    final star = i + 1;
+                    return IconButton(
+                      onPressed: () => setState(() => rating = star),
+                      icon: Icon(
+                        Icons.star,
+                        color: star <= rating
+                            ? Colors.amber
+                            : Colors.grey.shade300,
+                        size: 34,
+                      ),
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 10),
+
+                TextField(
+                  controller: reviewC,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText:
+                        'Contoh: Barangnya pas sesuai deskripsi.\nMinusnya dikit, Rekomen...',
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () async {
+                      final text = reviewC.text.trim();
+                      if (text.isEmpty) {
+                        Get.snackbar('Info', 'Tulis ulasan dulu ya');
+                        return;
+                      }
+
+                      // ambil buyer profile (nama + foto) untuk ditampilkan di list review
+                      final buyerDoc = await db
+                          .collection('users')
+                          .doc(authUid)
+                          .get();
+                      final buyer = buyerDoc.data() ?? {};
+                      final buyerName =
+                          (buyer['nama'] ?? buyer['username'] ?? 'Pembeli')
+                              .toString();
+                      final buyerPhoto = (buyer['foto_profil_url'] ?? '')
+                          .toString();
+
+                      // double-check sebelum nulis (antisipasi user klik 2x / race)
+                      final again = await reviewRef.get();
+                      if (again.exists) {
+                        Navigator.pop(ctx);
+                        Get.snackbar('Info', 'Ulasan sudah pernah dikirim');
+                        return;
+                      }
+
+                      await reviewRef.set({
+                        'review_id': reviewId,
+                        'order_id': order.id,
+                        'product_id': productId,
+                        'product_title': title,
+                        'product_image_url': imageUrl,
+                        'buyer_id': authUid,
+                        'buyer_name': buyerName,
+                        'buyer_photo_url': buyerPhoto,
+                        'buyer_role': 'Pembeli',
+                        'rating': rating,
+                        'text': text,
+                        'created_at': FieldValue.serverTimestamp(),
+                      });
+
+                      Navigator.pop(ctx);
+                      Get.snackbar('Sukses', 'Ulasan terkirim');
+                    },
+                    child: const Text('Kirim'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
 }

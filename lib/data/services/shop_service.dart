@@ -5,6 +5,8 @@ class ShopProfileService {
   ShopProfileService({FirebaseFirestore? db})
     : _db = db ?? FirebaseFirestore.instance;
 
+  FirebaseFirestore get db => _db;
+
   Stream<QuerySnapshot<Map<String, dynamic>>> sellerProductsSnap({
     required String userId,
     required bool isMe,
@@ -31,5 +33,16 @@ class ShopProfileService {
         .limit(1)
         .snapshots()
         .map((snap) => snap.docs.isEmpty ? null : snap.docs.first.data());
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> sellerReviewsSnap(
+    String sellerUid,
+  ) {
+    return _db
+        .collection('sellers')
+        .doc(sellerUid)
+        .collection('reviews')
+        .orderBy('created_at', descending: true)
+        .snapshots();
   }
 }

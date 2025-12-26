@@ -14,12 +14,12 @@ class OrdersController extends GetxController {
 
   final isLoading = false.obs;
 
-  // pisah error biar sold denied ga bunuh bought
   final soldError = RxnString();
   final boughtError = RxnString();
 
   final sold = <OrderModel>[].obs;
   final bought = <OrderModel>[].obs;
+  final receiving = <String, bool>{}.obs;
 
   StreamSubscription<User?>? _authSub;
   StreamSubscription<List<OrderModel>>? _soldSub;
@@ -133,14 +133,36 @@ class OrdersController extends GetxController {
   }
 
   Future<void> markAsReceived(String orderId) async {
+    if (receiving[orderId] == true) return;
+
     try {
-      isLoading.value = true;
+      receiving[orderId] = true;
+
+      // optimistic update: biar UI langsung ganti jadi received
+      final idx = bought.indexWhere((e) => e.id == orderId);
+      if (idx != -1) {
+        final old = bought[idx];
+        bought[idx] = OrderModel(
+          id: old.id,
+          buyerId: old.buyerId,
+          sellerUids: old.sellerUids,
+          status: 'received',
+          subtotal: old.subtotal,
+          shippingFee: old.shippingFee,
+          total: old.total,
+          createdAt: old.createdAt,
+          updatedAt: old.updatedAt,
+        );
+        bought.refresh();
+      }
+
       await _repo.markAsReceived(orderId);
-      Get.snackbar('Sukses', '“Pesanan diterima. Status order diperbarui.”');
+      Get.snackbar('Sukses', 'Pesanan diterima.');
     } catch (e) {
       Get.snackbar('Gagal', e.toString());
     } finally {
-      isLoading.value = false;
+      receiving[orderId] = false;
+      receiving.refresh();
     }
   }
 

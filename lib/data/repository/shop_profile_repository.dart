@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:prelovedly/models/product_model.dart';
 import 'package:prelovedly/data/services/shop_service.dart';
 
 class ShopProfileRepository {
   final ShopProfileService _service;
+
   ShopProfileRepository({ShopProfileService? service})
     : _service = service ?? ShopProfileService();
 
@@ -17,17 +19,20 @@ class ShopProfileRepository {
         try {
           out.add(ProductModel.fromDoc(d));
         } catch (e) {
-          // ✅ jangan bikin Shop Profile crash
-          // ignore: avoid_print
           print('PARSE PRODUCT FAIL id=${d.id} data=${d.data()} err=$e');
         }
       }
-
       return out;
     });
   }
 
   Stream<Map<String, dynamic>?> userByUidStream(String uid) {
     return _service.userByUidStream(uid);
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> sellerReviewsSnap(
+    String sellerUid,
+  ) {
+    return _service.sellerReviewsSnap(sellerUid);
   }
 }

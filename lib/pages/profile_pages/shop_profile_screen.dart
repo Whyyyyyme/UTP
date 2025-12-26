@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:prelovedly/models/product_model.dart';
@@ -121,7 +122,6 @@ class ShopProfileScreen extends StatelessWidget {
 
                 final u = userSnap.data ?? <String, dynamic>{};
 
-                // kalau profil sendiri: pakai data auth (lebih akurat dan cepat)
                 final nama = c.isMe
                     ? me.nama
                     : (u['nama'] ?? u['username'] ?? 'Seller').toString();
@@ -213,7 +213,6 @@ class ShopProfileScreen extends StatelessWidget {
 
                                         InkWell(
                                           onTap: () {
-                                            // kalau kamu masih pakai widget page langsung:
                                             Get.to(
                                               () => FollowersFollowingPage(
                                                 userId: c.targetUserId.value,
@@ -257,16 +256,34 @@ class ShopProfileScreen extends StatelessWidget {
 
                           const SizedBox(height: 16),
 
-                          // rating dummy
-                          Row(
-                            children: List.generate(
-                              5,
-                              (index) => Icon(
-                                Icons.star_border,
-                                color: Colors.grey[400],
-                              ),
-                            ),
-                          ),
+                          Obx(() {
+                            final s = c.ratingSummary.value;
+
+                            if (s.total == 0) {
+                              return Row(
+                                children: List.generate(
+                                  5,
+                                  (_) => Icon(
+                                    Icons.star_border,
+                                    color: Colors.grey[400],
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                _StarRow(avg: s.avg),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${s.avg.toStringAsFixed(1)} (${s.total})',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }),
 
                           const SizedBox(height: 8),
                           _bioSection(bio),
@@ -413,30 +430,9 @@ class ShopProfileScreen extends StatelessWidget {
             LikesTab(viewerId: c.viewerId, likeC: c.likeC),
 
             // ================= REVIEWS TAB =================
-            const _EmptyReviewsTab(),
+            ReviewsTab(sellerUid: c.targetUserId.value),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _EmptyReviewsTab extends StatelessWidget {
-  const _EmptyReviewsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.star_border, size: 80, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Belum ada ulasan',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-        ],
       ),
     );
   }
@@ -501,6 +497,287 @@ class _ProductCard extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _EmptyReviewsTab extends StatelessWidget {
+  const _EmptyReviewsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.star_border, size: 80, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Belum ada ulasan',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ReviewsTab extends StatelessWidget {
+  const ReviewsTab({super.key, required this.sellerUid});
+  final String sellerUid;
+
+  int _toInt(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final stream = FirebaseFirestore.instance
+        .collection('sellers')
+        .doc(sellerUid)
+        .collection('reviews')
+        .orderBy('created_at', descending: true)
+        .snapshots();
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: stream,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return Center(
+            child: Text(
+              'Gagal memuat ulasan: ${snap.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final docs = snap.data?.docs ?? [];
+        if (docs.isEmpty) return const _EmptyReviewsTab();
+
+        final reviews = docs.map((d) => d.data()).toList(growable: false);
+
+        // ===== hitung statistik =====
+        final total = reviews.length;
+        final counts = List<int>.filled(6, 0);
+        var sum = 0;
+        for (final r in reviews) {
+          final rating = _toInt(r['rating']).clamp(1, 5);
+          counts[rating]++;
+          sum += rating;
+        }
+        final avg = total == 0 ? 0.0 : sum / total;
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _RatingSummary(avg: avg, total: total, counts: counts),
+            const SizedBox(height: 12),
+
+            for (final r in reviews) _ReviewTile(data: r),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _RatingSummary extends StatelessWidget {
+  const _RatingSummary({
+    required this.avg,
+    required this.total,
+    required this.counts,
+  });
+
+  final double avg;
+  final int total;
+  final List<int> counts;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxCount = counts.reduce((a, b) => a > b ? a : b);
+    double frac(int c) => maxCount == 0 ? 0 : c / maxCount;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    avg.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontSize: 44,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: Icon(Icons.star, color: Colors.blue, size: 26),
+                  ),
+                ],
+              ),
+              Text(
+                '$total ratings',
+                style: const TextStyle(color: Colors.black54),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            children: [5, 4, 3, 2, 1].map((star) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    SizedBox(width: 14, child: Text('$star')),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: frac(counts[star]),
+                          minHeight: 8,
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor: const AlwaysStoppedAnimation(Colors.blue),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReviewTile extends StatelessWidget {
+  const _ReviewTile({required this.data});
+  final Map<String, dynamic> data;
+
+  int _toInt(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = _toInt(data['rating']).clamp(1, 5);
+    final text = (data['text'] ?? '').toString();
+
+    final buyerName = (data['buyer_name'] ?? 'Pembeli').toString();
+    final buyerPhoto = (data['buyer_photo_url'] ?? '').toString();
+
+    final productImage = (data['product_image_url'] ?? '').toString();
+
+    final ts = data['created_at'];
+    final dt = ts is Timestamp ? ts.toDate() : null;
+    final timeText = dt == null ? '' : _timeAgoId(dt);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ...List.generate(
+                5,
+                (i) => Icon(
+                  Icons.star,
+                  size: 18,
+                  color: (i + 1) <= rating ? Colors.blue : Colors.grey.shade300,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(timeText, style: const TextStyle(color: Colors.black54)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (text.isNotEmpty)
+            Text(
+              text,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.grey.shade300,
+                backgroundImage: buyerPhoto.isNotEmpty
+                    ? NetworkImage(buyerPhoto)
+                    : null,
+                child: buyerPhoto.isEmpty
+                    ? const Icon(Icons.person, color: Colors.black45)
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start),
+              ),
+              Expanded(
+                flex: 4,
+                child: Text(
+                  buyerName,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  color: Colors.grey.shade200,
+                  child: productImage.isNotEmpty
+                      ? Image.network(productImage, fit: BoxFit.cover)
+                      : const Icon(Icons.image_outlined, color: Colors.black26),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+String _timeAgoId(DateTime d) {
+  final diff = DateTime.now().difference(d);
+  if (diff.inDays >= 30) return '${(diff.inDays / 30).floor()} bulan yang lalu';
+  if (diff.inDays >= 1) return '${diff.inDays} hari yang lalu';
+  if (diff.inHours >= 1) return '${diff.inHours} jam yang lalu';
+  return 'baru saja';
+}
+
+class _StarRow extends StatelessWidget {
+  const _StarRow({required this.avg});
+  final double avg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(5, (i) {
+        final pos = i + 1;
+        final icon = (avg >= pos)
+            ? Icons.star
+            : (avg >= pos - 0.5)
+            ? Icons.star_half
+            : Icons.star_border;
+
+        return Icon(icon, color: Colors.amber, size: 20);
+      }),
     );
   }
 }

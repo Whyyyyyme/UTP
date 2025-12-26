@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:prelovedly/data/repository/chat_repository.dart';
 import 'package:prelovedly/models/product_model.dart';
@@ -32,6 +34,16 @@ class ShopProfileController extends GetxController {
   bool get isMe =>
       targetUserId.value.isNotEmpty && targetUserId.value == viewerId;
 
+  // rating state
+  final ratingSummary = const RatingSummary(
+    avg: 0,
+    total: 0,
+    counts: [0, 0, 0, 0, 0, 0], // index 0..5
+  ).obs;
+
+  StreamSubscription? _reviewsSub;
+  Worker? _targetUserWorker;
+
   @override
   void onInit() {
     super.onInit();
@@ -41,11 +53,23 @@ class ShopProfileController extends GetxController {
 
     _resolveSellerIdFromRoute();
     _readArgs();
+
+    // ✅ ini yang bikin dinamis: setiap targetUserId berubah, bind ulang stream rating
+    _targetUserWorker = ever<String>(targetUserId, (v) {
+      final uid = v.trim();
+      if (uid.isEmpty) return;
+      bindRating(uid);
+    });
+
+    // ✅ trigger pertama kali (karena ever() tidak otomatis jalan untuk nilai awal)
+    final firstUid = targetUserId.value.trim();
+    if (firstUid.isNotEmpty) {
+      bindRating(firstUid);
+    }
   }
 
   void _resolveSellerIdFromRoute() {
     String sid = '';
-
     final raw = Get.arguments;
 
     if (raw is Map) {
@@ -75,7 +99,6 @@ class ShopProfileController extends GetxController {
     }
 
     if (sid.isEmpty) return;
-
     targetUserId.value = sid;
   }
 
@@ -113,9 +136,14 @@ class ShopProfileController extends GetxController {
 
   Stream<int> followersCountStream() =>
       followC.followersCountStream(targetUserId.value);
-
   Stream<int> followingCountStream() =>
       followC.followingCountStream(targetUserId.value);
+
+  Stream<List<Map<String, dynamic>>> reviewsStream(String sellerUid) {
+    return repo.sellerReviewsSnap(sellerUid).map((snap) {
+      return snap.docs.map((d) => d.data()).toList(growable: false);
+    });
+  }
 
   // ===== actions =====
   Future<void> toggleFollow({required bool currentlyFollowing}) async {
@@ -131,7 +159,6 @@ class ShopProfileController extends GetxController {
   }
 
   Future<void> onTapProduct(ProductModel p) async {
-    // draft hanya boleh untuk owner sendiri
     if (p.isDraft) {
       if (!isMe) return;
 
@@ -142,7 +169,6 @@ class ShopProfileController extends GetxController {
       return;
     }
 
-    // published
     if (isMe) {
       Get.toNamed(
         '${Routes.manageProduct}?id=${p.id}&seller_id=${targetUserId.value}',
@@ -162,8 +188,6 @@ class ShopProfileController extends GetxController {
     );
   }
 
-  /// ✅ FIX: cukup 1x ensureThread, jangan pakai threadId manual.
-  /// Di Shop Profile gak ada produk -> pakai productId: 'general'
   Future<void> openChatWithSeller({
     required String sellerId,
     required String sellerName,
@@ -188,7 +212,6 @@ class ShopProfileController extends GetxController {
     }
 
     try {
-      // ambil data saya dari AuthController (lebih konsisten)
       final me = authC.user.value;
       final myName = (me?.username.isNotEmpty == true)
           ? me!.username
@@ -199,7 +222,6 @@ class ShopProfileController extends GetxController {
 
       final chatRepo = Get.find<ChatRepository>();
 
-      // ✅ threadId didapat dari repo (format 1 room per 2 user)
       final threadId = await chatRepo.ensureThread(
         myUid: myUid,
         peerId: sid,
@@ -224,4 +246,59 @@ class ShopProfileController extends GetxController {
       Get.snackbar('Error', 'Gagal membuka chat: $e');
     }
   }
+
+  void bindRating(String sellerUid) {
+    _reviewsSub?.cancel();
+
+    _reviewsSub = repo
+        .sellerReviewsSnap(sellerUid)
+        .listen(
+          (snap) {
+            int toInt(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
+
+            final docs = snap.docs;
+            final total = docs.length;
+            final counts = List<int>.filled(6, 0); // 1..5
+            var sum = 0;
+
+            for (final d in docs) {
+              final r = toInt(d.data()['rating']).clamp(1, 5);
+              counts[r]++;
+              sum += r;
+            }
+
+            final avg = total == 0 ? 0.0 : sum / total;
+            ratingSummary.value = RatingSummary(
+              avg: avg,
+              total: total,
+              counts: counts,
+            );
+          },
+          onError: (_) {
+            ratingSummary.value = const RatingSummary(
+              avg: 0,
+              total: 0,
+              counts: [0, 0, 0, 0, 0, 0],
+            );
+          },
+        );
+  }
+
+  @override
+  void onClose() {
+    _targetUserWorker?.dispose();
+    _reviewsSub?.cancel();
+    super.onClose();
+  }
+}
+
+class RatingSummary {
+  final double avg;
+  final int total;
+  final List<int> counts; // index 1..5
+  const RatingSummary({
+    required this.avg,
+    required this.total,
+    required this.counts,
+  });
 }
