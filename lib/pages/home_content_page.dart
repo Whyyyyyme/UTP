@@ -174,7 +174,6 @@ class HomeContentPage extends StatelessWidget {
                 );
               }
 
-              // ✅ viewerId dari session
               return Obx(() {
                 final viewerId = session.viewerId.value;
 

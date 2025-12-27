@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:prelovedly/utils/rupiah.dart';
 import 'package:prelovedly/view_model/home_controller.dart';
 
 class WelcomeCard extends StatelessWidget {
@@ -93,11 +95,6 @@ class SellerCard extends StatelessWidget {
             final username = (user['username'] ?? 'seller').toString();
             final fotoProfilUrl = (user['foto_profil_url'] ?? '').toString();
 
-            final dynamic ratingRaw = user['rating'];
-            final double rating = ratingRaw is num
-                ? ratingRaw.toDouble()
-                : double.tryParse('$ratingRaw') ?? 5.0;
-
             return StreamBuilder<List<Map<String, dynamic>>>(
               stream: c.sellerThumbsStream(sellerId),
               builder: (context, prodSnap) {
@@ -182,17 +179,52 @@ class SellerCard extends StatelessWidget {
 
                     SizedBox(
                       height: _starsH,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(5, (i) {
-                          return Icon(
-                            i < rating.round().clamp(0, 5)
-                                ? Icons.star
-                                : Icons.star_border,
-                            size: 18,
-                            color: Colors.blue,
+                      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('sellers')
+                            .doc(sellerId)
+                            .collection('reviews')
+                            .snapshots(),
+                        builder: (_, snap) {
+                          final docs = snap.data?.docs ?? [];
+                          if (docs.isEmpty) {
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                5,
+                                (_) => Icon(
+                                  Icons.star_border,
+                                  size: 18,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                            );
+                          }
+
+                          var sum = 0;
+                          for (final d in docs) {
+                            final r = d.data()['rating'];
+                            final int rating = (r is num)
+                                ? r.toInt()
+                                : int.tryParse('$r') ?? 0;
+                            sum += rating.clamp(1, 5);
+                          }
+                          final avg = sum / docs.length;
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              StarRow(avg: avg, size: 18, color: Colors.amber),
+                              const SizedBox(width: 6),
+                              Text(
+                                avg.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           );
-                        }),
+                        },
                       ),
                     ),
                   ],
@@ -374,7 +406,10 @@ class HotItemCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(_rp(price), style: const TextStyle(fontWeight: FontWeight.w800)),
+          Text(
+            rupiah(price),
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 2),
           Text(
             brand,
@@ -390,8 +425,6 @@ class HotItemCard extends StatelessWidget {
       ),
     );
   }
-
-  String _rp(int value) => 'Rp $value';
 }
 
 String firstImageUrl(Map<String, dynamic> data) {
@@ -405,4 +438,31 @@ String firstImageUrl(Map<String, dynamic> data) {
       (data['image_urls'] as List?)?.map((e) => e.toString()).toList() ?? [];
 
   return list.isNotEmpty ? list.first : '';
+}
+
+class StarRow extends StatelessWidget {
+  const StarRow({
+    super.key,
+    required this.avg,
+    this.size = 18,
+    this.color = Colors.amber,
+  });
+  final double avg;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(5, (i) {
+        final pos = i + 1;
+        final icon = (avg >= pos)
+            ? Icons.star
+            : (avg >= pos - 0.5)
+            ? Icons.star_half
+            : Icons.star_border;
+        return Icon(icon, color: color, size: size);
+      }),
+    );
+  }
 }

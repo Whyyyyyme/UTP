@@ -68,6 +68,16 @@ class _LikedProductTile extends StatelessWidget {
         }
 
         final data = snap.data!.data() ?? {};
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        final isDraft = (data['is_draft'] == true) || status == 'draft';
+        final isSold =
+            (data['is_sold'] == true) ||
+            status == 'sold' ||
+            status == 'terjual';
+
+        if (isDraft || isSold) {
+          return const SizedBox.shrink();
+        }
         final urls = ((data['image_urls'] as List?) ?? [])
             .map((e) => '$e')
             .toList();

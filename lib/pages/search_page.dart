@@ -22,7 +22,8 @@ class _SearchPageState extends State<SearchPage> {
       setState(() {
         selectedBrand = args['query'];
         searchQuery = "";
-        _searchController.text = args['query']; // Set text di controller jika ada argumen
+        _searchController.text =
+            args['query']; // Set text di controller jika ada argumen
       });
     }
   }
@@ -68,7 +69,7 @@ class _SearchPageState extends State<SearchPage> {
             textAlignVertical: TextAlignVertical.center,
             style: const TextStyle(fontSize: 14),
             // ✅ Fungsi Enter pada Keyboard
-            onSubmitted: (value) => _onSearchSubmit(), 
+            onSubmitted: (value) => _onSearchSubmit(),
             decoration: InputDecoration(
               hintText: 'Cari items, brand, atau kategori',
               hintStyle: const TextStyle(color: Colors.black54, fontSize: 14),
@@ -76,7 +77,7 @@ class _SearchPageState extends State<SearchPage> {
               isCollapsed: true,
               prefixIcon: GestureDetector(
                 // ✅ Fungsi Klik pada Ikon Search
-                onTap: _onSearchSubmit, 
+                onTap: _onSearchSubmit,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 9),
                   child: const Icon(
@@ -112,50 +113,73 @@ class _SearchPageState extends State<SearchPage> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: ['Puma', 'Nike', 'Adidas', 'New Balance', 'Converse']
                   .map((brand) {
-                bool isSelected = selectedBrand == brand;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ChoiceChip(
-                    label: Text(brand),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        selectedBrand = selected ? brand : "";
-                        searchQuery = "";
-                        _searchController.clear();
-                      });
-                    },
-                    selectedColor: Colors.black,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black,
-                    ),
-                  ),
-                );
-              }).toList(),
+                    bool isSelected = selectedBrand == brand;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ChoiceChip(
+                        label: Text(brand),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            selectedBrand = selected ? brand : "";
+                            searchQuery = "";
+                            _searchController.clear();
+                          });
+                        },
+                        selectedColor: Colors.black,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                        ),
+                      ),
+                    );
+                  })
+                  .toList(),
             ),
           ),
           const Divider(),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('products').snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('products')
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("Belum ada barang di database."));
+                  return const Center(
+                    child: Text("Belum ada barang di database."),
+                  );
                 }
 
                 var filteredDocs = snapshot.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
+                  final data = doc.data() as Map;
+
+                  // ✅ filter status dulu
+                  final status = (data['status'] ?? '')
+                      .toString()
+                      .toLowerCase();
+                  final isDraft =
+                      (data['is_draft'] == true) || status == 'draft';
+                  final isSold =
+                      (data['is_sold'] == true) ||
+                      status == 'sold' ||
+                      status == 'terjual';
+
+                  if (isDraft || isSold) return false;
+
                   final title = (data['title'] ?? "").toString().toLowerCase();
                   final brand = (data['brand'] ?? "").toString().toLowerCase();
-                  final category = (data['category_name'] ?? "").toString().toLowerCase();
-                  final description = (data['description'] ?? "").toString().toLowerCase();
+                  final category = (data['category_name'] ?? "")
+                      .toString()
+                      .toLowerCase();
+                  final description = (data['description'] ?? "")
+                      .toString()
+                      .toLowerCase();
 
                   if (selectedBrand.isNotEmpty) {
-                    String filter = selectedBrand.toLowerCase();
+                    final filter = selectedBrand.toLowerCase();
                     return brand == filter || category.contains(filter);
                   }
 
@@ -178,7 +202,8 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                   itemCount: filteredDocs.length,
                   itemBuilder: (context, index) {
-                    final data = filteredDocs[index].data() as Map<String, dynamic>;
+                    final data =
+                        filteredDocs[index].data() as Map<String, dynamic>;
                     final docId = filteredDocs[index].id;
                     return _buildProductItem(data, docId);
                   },
@@ -203,10 +228,7 @@ class _SearchPageState extends State<SearchPage> {
       onTap: () {
         Get.toNamed(
           '/product-detail',
-          arguments: {
-            "id": id,
-            "seller_id": data['seller_id'],
-          },
+          arguments: {"id": id, "seller_id": data['seller_id']},
         );
       },
       child: Column(
@@ -225,21 +247,33 @@ class _SearchPageState extends State<SearchPage> {
                         img,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.broken_image),
                       )
-                    : const Center(child: Icon(Icons.image, color: Colors.grey)),
+                    : const Center(
+                        child: Icon(Icons.image, color: Colors.grey),
+                      ),
               ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(productTitle,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-          Text(rp(price),
-              style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w700)),
-          Text(data['condition'] ?? "Kondisi Baik",
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(
+            productTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            rp(price),
+            style: const TextStyle(
+              color: Color.fromARGB(255, 0, 0, 0),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            data['condition'] ?? "Kondisi Baik",
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
         ],
       ),
     );
