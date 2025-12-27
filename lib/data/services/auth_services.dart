@@ -177,4 +177,34 @@ class AuthService {
       rethrow;
     }
   }
+
+  Future<void> ensureUserProfileExists({
+    required String uid,
+    required String email,
+    required String nama,
+    String? fotoUrl,
+  }) async {
+    final ref = _db.collection('users').doc(uid);
+    final snap = await ref.get();
+
+    if (snap.exists) return;
+
+    await ref.set({
+      'uid': uid,
+      'email': email,
+      'nama': nama.isNotEmpty ? nama : 'User',
+      'username': '',
+      'bio': '',
+      'alamat': '',
+      'no_telp': '',
+      'foto_profil_url': fotoUrl ?? '',
+      'role': 'pembeli',
+      'is_active': true,
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+
+    // opsional: kalau kamu mau juga sinkron ke Supabase seperti signUp()
+    // (kalau tidak, minimal Firestore dulu biar app gak "belum login")
+  }
 }

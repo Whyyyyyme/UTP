@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/view_model/auth_controller.dart';
 
 class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+  LoginPage({super.key});
+  final authC = Get.find<AuthController>();
 
   void _snack(String msg) {
     Get.snackbar(
@@ -92,7 +94,6 @@ class LoginPage extends StatelessWidget {
 
                           SizedBox(height: midGap),
 
-                          // Google
                           _AuthButton(
                             height: btnH,
                             background: Colors.white,
@@ -104,8 +105,14 @@ class LoginPage extends StatelessWidget {
                               ),
                             ),
                             text: "Masuk lewat Google",
-                            onPressed: () =>
-                                _snack("Google Sign-In belum diaktifkan"),
+                            onPressed: () async {
+                              try {
+                                await authC.signInWithGoogle();
+                                Get.offAllNamed(Routes.home);
+                              } catch (e) {
+                                _snack('Google Sign-In gagal: $e');
+                              }
+                            },
                           ),
 
                           SizedBox(height: 12 * scale),
@@ -195,7 +202,6 @@ class LoginPage extends StatelessWidget {
                           ),
 
                           SizedBox(height: 14 * scale),
-
                         ],
                       ),
                     ),

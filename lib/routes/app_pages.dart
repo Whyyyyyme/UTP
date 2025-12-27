@@ -430,7 +430,7 @@ class AppPages {
     // ======================
     GetPage(
       name: Routes.login,
-      page: () => const LoginPage(), // landing fixed
+      page: () => LoginPage(), // landing fixed
       binding: BindingsBuilder(() {
         ensureGlobals();
       }),

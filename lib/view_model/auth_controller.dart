@@ -1,7 +1,7 @@
-// lib/view_model/auth_controller.dart
-
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:prelovedly/models/user_model.dart';
@@ -241,6 +241,53 @@ class AuthController extends GetxController {
     } catch (e) {
       errorMessage.value = e.toString();
       return false;
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    try {
+      isLoading.value = true;
+      errorMessage.value = null;
+
+      UserCredential userCred;
+
+      if (kIsWeb) {
+        final provider = GoogleAuthProvider();
+        provider.setCustomParameters({'prompt': 'select_account'});
+        userCred = await _firebaseAuth.signInWithPopup(provider);
+      } else {
+        await GoogleSignIn.instance.initialize();
+        final result = await GoogleSignIn.instance.authenticate(
+          scopeHint: const ['email'],
+        );
+
+        final idToken = result.authentication.idToken;
+        if (idToken == null || idToken.isEmpty) {
+          throw Exception('ID token kosong');
+        }
+
+        final credential = GoogleAuthProvider.credential(idToken: idToken);
+        userCred = await _firebaseAuth.signInWithCredential(credential);
+      }
+
+      final fbUser = userCred.user;
+      final uid = fbUser?.uid;
+      if (uid == null || uid.isEmpty) return;
+
+      await _authService.ensureUserProfileExists(
+        uid: uid,
+        email: fbUser?.email ?? '',
+        nama: fbUser?.displayName ?? '',
+        fotoUrl: fbUser?.photoURL,
+      );
+
+      user.value = await _authService.getUserProfile(uid);
+      _syncSessionViewer();
+    } catch (e) {
+      errorMessage.value = 'Google Sign-In gagal: $e';
+      Get.snackbar('Error', errorMessage.value!);
+    } finally {
+      isLoading.value = false;
     }
   }
 }
