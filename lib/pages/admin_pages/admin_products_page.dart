@@ -1,9 +1,11 @@
+// lib/pages/admin_pages/admin_products_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:prelovedly/view_model/admin_products_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/utils/rupiah.dart';
 
 class AdminProductsPage extends StatelessWidget {
   const AdminProductsPage({super.key});
@@ -11,6 +13,9 @@ class AdminProductsPage extends StatelessWidget {
   // ===== THEME =====
   static const Color _bg = Color(0xFFF5F6FA);
 
+  // =======================
+  // CONFIRM PUBLISH / HIDE
+  // =======================
   Future<bool> _confirmToggle({
     required bool nextPublished,
     required String title,
@@ -22,7 +27,9 @@ class AdminProductsPage extends StatelessWidget {
     final result = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Konfirmasi'),
-        content: Text('Apakah Anda yakin ingin $actionText produk:\n\n$title'),
+        content: Text(
+          'Apakah Anda yakin ingin $actionText produk berikut?\n\n$title',
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
@@ -34,17 +41,45 @@ class AdminProductsPage extends StatelessWidget {
           ),
         ],
       ),
-      barrierDismissible: true,
     );
 
     return result == true;
   }
 
-  /// ✅ Helper sold-out: produk yang sudah terjual tidak ditampilkan
+  // =======================
+  // CONFIRM DELETE PRODUCT
+  // =======================
+  Future<bool> _confirmDelete({required String title}) async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Hapus Produk'),
+        content: Text(
+          'Produk ini akan DIHAPUS PERMANEN dari sistem.\n\n$title\n\nTindakan ini tidak bisa dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Get.back(result: true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    return result == true;
+  }
+
+  /// =======================
+  /// Helper sold-out
+  /// =======================
   bool _isSoldOut(Map<String, dynamic> data) {
     final status = (data['status'] ?? '').toString().toLowerCase();
 
-    final bool byStatus =
+    final byStatus =
         status == 'sold' ||
         status == 'sold_out' ||
         status == 'soldout' ||
@@ -54,33 +89,51 @@ class AdminProductsPage extends StatelessWidget {
         status == 'done' ||
         status == 'terjual';
 
-    final bool byBool =
+    final byBool =
         data['isSold'] == true ||
         data['sold'] == true ||
         data['is_sold'] == true ||
         data['isSoldOut'] == true ||
         data['soldOut'] == true;
 
-    final dynamic stockRaw = data['stock'];
-    final bool byStock = stockRaw is num ? stockRaw <= 0 : false;
+    final stockRaw = data['stock'];
+    final byStock = stockRaw is num ? stockRaw <= 0 : false;
 
     return byStatus || byBool || byStock;
+  }
+
+  /// =======================
+  /// Helper parsing price -> num
+  /// (biar rupiah() aman walau price string)
+  /// =======================
+  num _toNum(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v;
+    final s = v.toString().trim();
+    if (s.isEmpty) return 0;
+
+    // buang karakter non angka
+    final cleaned = s.replaceAll(RegExp(r'[^0-9]'), '');
+    return num.tryParse(cleaned) ?? 0;
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(AdminProductsController());
 
-    // ✅ cache nama seller supaya tidak fetch berulang
+    // loading delete product
+    final RxnString deletingIdRx = RxnString();
+
+    // cache seller name
     final Map<String, Future<String>> sellerNameCache = {};
 
     Future<String> fetchSellerName(String sellerId) {
       if (sellerId.trim().isEmpty || sellerId == '-') {
         return Future.value('Tidak diketahui');
       }
+
       return sellerNameCache.putIfAbsent(sellerId, () async {
         try {
-          // ✅ asumsi: collection users, docId = UID
           final snap = await FirebaseFirestore.instance
               .collection('users')
               .doc(sellerId)
@@ -88,9 +141,7 @@ class AdminProductsPage extends StatelessWidget {
 
           if (!snap.exists) return 'Tidak diketahui';
 
-          final data = snap.data() as Map<String, dynamic>;
-
-          // coba beberapa kemungkinan nama field
+          final data = snap.data()!;
           final name =
               (data['username'] ??
                       data['name'] ??
@@ -102,8 +153,7 @@ class AdminProductsPage extends StatelessWidget {
                   .toString()
                   .trim();
 
-          if (name.isEmpty) return 'Tidak diketahui';
-          return name;
+          return name.isEmpty ? 'Tidak diketahui' : name;
         } catch (_) {
           return 'Tidak diketahui';
         }
@@ -117,11 +167,11 @@ class AdminProductsPage extends StatelessWidget {
           children: [
             _GradientHeader(
               title: 'Semua Produk',
-              subtitle: 'Publish/hidden produk seller',
+              subtitle: 'Publish / Hidden / Delete Produk Seller',
               onBack: () => Get.back(),
             ),
 
-            // SEARCH + FILTER (modern)
+            // SEARCH + FILTER
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
               child: Row(
@@ -136,7 +186,7 @@ class AdminProductsPage extends StatelessWidget {
                   Obx(
                     () => _FilterDropdown(
                       value: controller.statusFilter.value,
-                      onChanged: (v) => controller.setFilterStatus(v),
+                      onChanged: controller.setFilterStatus,
                     ),
                   ),
                 ],
@@ -164,13 +214,10 @@ class AdminProductsPage extends StatelessWidget {
                   final rawDocs = snapshot.data!.docs;
 
                   return Obx(() {
-                    // ✅ 1) Hilangkan produk sold out dulu
-                    final notSoldDocs = rawDocs.where((d) {
-                      final data = d.data();
-                      return !_isSoldOut(data);
-                    }).toList();
+                    final notSoldDocs = rawDocs
+                        .where((d) => !_isSoldOut(d.data()))
+                        .toList();
 
-                    // ✅ 2) Baru apply filter search & dropdown
                     final docs = controller.applyFilter(notSoldDocs);
 
                     if (docs.isEmpty) {
@@ -189,9 +236,11 @@ class AdminProductsPage extends StatelessWidget {
 
                         final productId = (data['id'] ?? doc.id).toString();
                         final title = (data['title'] ?? '-').toString();
-                        final price = data['price'] ?? 0;
 
-                        // seller id
+                        // ✅ ambil price raw lalu parsing ke num
+                        final dynamic priceRaw = data['price'] ?? 0;
+                        final num priceNum = _toNum(priceRaw);
+
                         final sellerId = (data['seller_id'] ?? '-').toString();
 
                         final status = (data['status'] ?? 'published')
@@ -218,18 +267,18 @@ class AdminProductsPage extends StatelessWidget {
                           child: FutureBuilder<String>(
                             future: fetchSellerName(sellerId),
                             builder: (context, snapName) {
-                              final sellerName = (snapName.data ?? 'Memuat...')
-                                  .toString();
+                              final sellerName = snapName.data ?? 'Memuat...';
 
                               return _ProductCard(
                                 productId: productId,
                                 title: title,
-                                price: price.toString(),
+                                priceNum: priceNum, // ✅ kirim num
                                 sellerId: sellerId,
-                                sellerName: sellerName, // ✅ tampil nama
+                                sellerName: sellerName,
                                 thumbUrl: thumb,
                                 isPublished: isPublished,
                                 togglingIdRx: controller.togglingProductId,
+                                deletingIdRx: deletingIdRx,
                                 onToggle: (val) async {
                                   final ok = await _confirmToggle(
                                     nextPublished: val,
@@ -241,6 +290,32 @@ class AdminProductsPage extends StatelessWidget {
                                     productId: productId,
                                     nextPublished: val,
                                   );
+                                },
+                                onDelete: () async {
+                                  final ok = await _confirmDelete(title: title);
+                                  if (!ok) return;
+
+                                  try {
+                                    deletingIdRx.value = productId;
+                                    await FirebaseFirestore.instance
+                                        .collection('products')
+                                        .doc(productId)
+                                        .delete();
+
+                                    Get.snackbar(
+                                      'Berhasil',
+                                      'Produk dihapus permanen.',
+                                      snackPosition: SnackPosition.BOTTOM,
+                                    );
+                                  } catch (e) {
+                                    Get.snackbar(
+                                      'Gagal',
+                                      'Tidak bisa hapus produk:\n$e',
+                                      snackPosition: SnackPosition.BOTTOM,
+                                    );
+                                  } finally {
+                                    deletingIdRx.value = null;
+                                  }
                                 },
                               );
                             },
@@ -260,7 +335,7 @@ class AdminProductsPage extends StatelessWidget {
 }
 
 // ==========================
-// HEADER (linear dashboard)
+// HEADER
 // ==========================
 class _GradientHeader extends StatelessWidget {
   final String title;
@@ -327,7 +402,7 @@ class _GradientHeader extends StatelessWidget {
 }
 
 // ==========================
-// SEARCH FIELD (modern)
+// SEARCH FIELD
 // ==========================
 class _SearchField extends StatelessWidget {
   final String hint;
@@ -375,7 +450,7 @@ class _SearchField extends StatelessWidget {
 }
 
 // ==========================
-// FILTER DROPDOWN (modern)
+// FILTER DROPDOWN
 // ==========================
 class _FilterDropdown extends StatelessWidget {
   final String value;
@@ -405,7 +480,7 @@ class _FilterDropdown extends StatelessWidget {
           items: const [
             DropdownMenuItem(value: 'all', child: Text('Semua')),
             DropdownMenuItem(value: 'published', child: Text('Published')),
-            DropdownMenuItem(value: 'draft', child: Text('Draft (seller)')),
+            DropdownMenuItem(value: 'draft', child: Text('Draft (Seller)')),
             DropdownMenuItem(value: 'hidden', child: Text('Hidden (Admin)')),
           ],
           onChanged: onChanged,
@@ -416,12 +491,13 @@ class _FilterDropdown extends StatelessWidget {
 }
 
 // ==========================
-// PRODUCT CARD (modern)
+// PRODUCT CARD
 // ==========================
 class _ProductCard extends StatelessWidget {
   final String productId;
   final String title;
-  final String price;
+
+  final num priceNum; // ✅ sekarang num, bukan string
 
   final String sellerId;
   final String sellerName;
@@ -430,18 +506,23 @@ class _ProductCard extends StatelessWidget {
   final bool isPublished;
 
   final RxnString togglingIdRx;
+  final RxnString deletingIdRx;
+
   final ValueChanged<bool> onToggle;
+  final VoidCallback onDelete;
 
   const _ProductCard({
     required this.productId,
     required this.title,
-    required this.price,
+    required this.priceNum,
     required this.sellerId,
     required this.sellerName,
     required this.thumbUrl,
     required this.isPublished,
     required this.togglingIdRx,
+    required this.deletingIdRx,
     required this.onToggle,
+    required this.onDelete,
   });
 
   @override
@@ -464,26 +545,24 @@ class _ProductCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // THUMB
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: Container(
               width: 56,
               height: 56,
               color: Colors.grey.shade200,
-              child: (thumbUrl == null || thumbUrl!.isEmpty)
-                  ? const Icon(Icons.image_not_supported, color: Colors.grey)
+              child: thumbUrl == null || thumbUrl!.isEmpty
+                  ? const Icon(Icons.image_not_supported)
                   : Image.network(
                       thumbUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.broken_image, color: Colors.grey),
+                          const Icon(Icons.broken_image),
                     ),
             ),
           ),
           const SizedBox(width: 12),
 
-          // INFO
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,72 +571,50 @@ class _ProductCard extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Rp $price',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
 
-                // ✅ tampil nama seller
+                // ✅ INI YANG MEMPERBAIKI FORMAT HARGA
+                Text(
+                  rupiah(priceNum),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+
+                const SizedBox(height: 6),
                 Text(
                   'Seller: $sellerName',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: const TextStyle(fontSize: 12.5, color: Colors.grey),
                 ),
-
-                // (opsional) kalau kamu masih mau lihat UID kecil:
-                const SizedBox(height: 2),
-                Text(
-                  sellerId,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _Pill(text: statusText, color: statusColor),
               ],
             ),
           ),
 
-          const SizedBox(width: 10),
           Obx(() {
-            final isLoading = togglingIdRx.value == productId;
-            return SizedBox(
-              width: 92,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                    child: Switch(
-                      value: isPublished,
-                      onChanged: isLoading ? null : onToggle,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  if (isLoading)
-                    const SizedBox(
-                      height: 12,
-                      width: 12,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                ],
-              ),
+            final isToggling = togglingIdRx.value == productId;
+            final isDeleting = deletingIdRx.value == productId;
+
+            return Row(
+              children: [
+                IconButton(
+                  onPressed: (isToggling || isDeleting) ? null : onDelete,
+                  icon: isDeleting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete, color: Colors.red),
+                ),
+                Switch(
+                  value: isPublished,
+                  onChanged: (isToggling || isDeleting) ? null : onToggle,
+                ),
+              ],
             );
           }),
         ],

@@ -1,3 +1,4 @@
+// lib/pages/admin_pages/admin_users_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -17,6 +18,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
   late final AdminUsersController controller;
   final TextEditingController _search = TextEditingController();
+
+  // loading untuk delete user
+  final RxnString _deletingUid = RxnString();
 
   @override
   void initState() {
@@ -58,6 +62,43 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     );
 
     return result == true;
+  }
+
+  Future<bool> _confirmDeleteUser({
+    required String nama,
+    required String email,
+  }) async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Hapus User'),
+        content: Text(
+          'User ini akan dihapus dari tampilan (soft delete).\n\n$nama\n$email\n\nLanjutkan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Get.back(result: true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
+    return result == true;
+  }
+
+  Future<void> _softDeleteUser(String uid) async {
+    // Soft delete: biar tidak tampil lagi, tanpa hapus akun FirebaseAuth
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'deleted': true,
+      'deleted_at': FieldValue.serverTimestamp(),
+      'is_active': false,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
   }
 
   @override
@@ -108,13 +149,29 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                     );
                   }
 
-                  // filter lokal (biar search jalan tanpa ubah controller)
-                  final filtered = users.where((doc) {
+                  // ✅ filter lokal: sembunyikan user yang deleted
+                  final notDeleted = users.where((doc) {
                     final data = doc.data();
-                    final nama = (data['nama'] ?? '-').toString().toLowerCase();
+                    final deleted = data['deleted'] == true;
+                    return !deleted;
+                  }).toList();
+
+                  // filter search lokal
+                  final filtered = notDeleted.where((doc) {
+                    final data = doc.data();
+
+                    final nama =
+                        (data['nama'] ??
+                                data['username'] ??
+                                data['name'] ??
+                                '-')
+                            .toString()
+                            .toLowerCase();
+
                     final email = (data['email'] ?? '-')
                         .toString()
                         .toLowerCase();
+
                     if (q.isEmpty) return true;
                     return nama.contains(q) || email.contains(q);
                   }).toList();
@@ -132,7 +189,14 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       final data = doc.data();
 
                       final uid = (data['uid'] ?? doc.id).toString();
-                      final nama = (data['nama'] ?? '-').toString();
+
+                      final nama =
+                          (data['nama'] ??
+                                  data['username'] ??
+                                  data['name'] ??
+                                  '-')
+                              .toString();
+
                       final email = (data['email'] ?? '-').toString();
                       final role = (data['role'] ?? '-').toString();
 
@@ -147,6 +211,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                         role: role,
                         isActive: isActive,
                         togglingUidRx: controller.togglingUid,
+                        deletingUidRx: _deletingUid,
                         onToggle: (val) async {
                           final ok = await _confirmToggle(
                             nextValue: val,
@@ -159,6 +224,31 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                             uid: uid,
                             nextValue: val,
                           );
+                        },
+                        onDelete: () async {
+                          final ok = await _confirmDeleteUser(
+                            nama: nama,
+                            email: email,
+                          );
+                          if (!ok) return;
+
+                          try {
+                            _deletingUid.value = uid;
+                            await _softDeleteUser(uid);
+                            Get.snackbar(
+                              'Berhasil',
+                              'User dihapus dari tampilan.',
+                              snackPosition: SnackPosition.BOTTOM,
+                            );
+                          } catch (e) {
+                            Get.snackbar(
+                              'Gagal',
+                              'Tidak bisa hapus user: $e',
+                              snackPosition: SnackPosition.BOTTOM,
+                            );
+                          } finally {
+                            _deletingUid.value = null;
+                          }
                         },
                       );
                     },
@@ -316,7 +406,10 @@ class _UserCard extends StatelessWidget {
   final bool isActive;
 
   final RxnString togglingUidRx;
+  final RxnString deletingUidRx;
+
   final ValueChanged<bool> onToggle;
+  final VoidCallback onDelete;
 
   const _UserCard({
     required this.uid,
@@ -325,7 +418,9 @@ class _UserCard extends StatelessWidget {
     required this.role,
     required this.isActive,
     required this.togglingUidRx,
+    required this.deletingUidRx,
     required this.onToggle,
+    required this.onDelete,
   });
 
   @override
@@ -394,28 +489,45 @@ class _UserCard extends StatelessWidget {
           ),
 
           const SizedBox(width: 10),
+
+          // kanan: delete + switch
           Obx(() {
-            final isLoading = togglingUidRx.value == uid;
-            return SizedBox(
-              width: 92,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                    child: Switch(
-                      value: isActive,
-                      onChanged: isLoading ? null : onToggle,
-                    ),
+            final isToggling = togglingUidRx.value == uid;
+            final isDeleting = deletingUidRx.value == uid;
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Hapus',
+                  onPressed: (isToggling || isDeleting) ? null : onDelete,
+                  icon: isDeleting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline, color: Colors.red),
+                ),
+                SizedBox(
+                  width: 72,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch(
+                        value: isActive,
+                        onChanged: (isToggling || isDeleting) ? null : onToggle,
+                      ),
+                      if (isToggling)
+                        const SizedBox(
+                          height: 12,
+                          width: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  if (isLoading)
-                    const SizedBox(
-                      height: 12,
-                      width: 12,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                ],
-              ),
+                ),
+              ],
             );
           }),
         ],
