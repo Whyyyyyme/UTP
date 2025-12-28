@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/view_model/like_controller.dart';
 
 class LikesTab extends StatelessWidget {
@@ -62,22 +63,27 @@ class _LikedProductTile extends StatelessWidget {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: db.collection('products').doc(productId).snapshots(),
       builder: (context, snap) {
-        // kalau produk hilang / dihapus
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _box(child: const SizedBox.shrink());
+        }
         if (!snap.hasData || !(snap.data?.exists ?? false)) {
-          return _box(child: const Icon(Icons.image, size: 40));
+          return const SizedBox.shrink();
         }
 
         final data = snap.data!.data() ?? {};
-        final status = (data['status'] ?? '').toString().toLowerCase();
+
+        final status = (data['status'] ?? '').toString().toLowerCase().trim();
         final isDraft = (data['is_draft'] == true) || status == 'draft';
         final isSold =
             (data['is_sold'] == true) ||
             status == 'sold' ||
             status == 'terjual';
 
+        // Kalau draft / sold -> sembunyikan
         if (isDraft || isSold) {
           return const SizedBox.shrink();
         }
+
         final urls = ((data['image_urls'] as List?) ?? [])
             .map((e) => '$e')
             .toList();
@@ -86,9 +92,18 @@ class _LikedProductTile extends StatelessWidget {
             ? thumb
             : (urls.isNotEmpty ? urls.first : '');
 
+        final sellerId = (data['seller_id'] ?? '').toString();
+
         return InkWell(
           onTap: () {
-            Get.toNamed('/product-detail', arguments: {'id': productId});
+            Get.toNamed(
+              Routes.productDetail,
+              arguments: {
+                'id': productId,
+                'seller_id': sellerId,
+                'is_me': false,
+              },
+            );
           },
           child: _box(
             child: img.isEmpty

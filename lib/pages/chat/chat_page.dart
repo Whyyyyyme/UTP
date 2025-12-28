@@ -60,7 +60,7 @@ class ChatPage extends StatelessWidget {
               }),
             ),
 
-            // ====== OFFER BANNER (3 versi) ======
+            // ====== OFFER BANNER ======
             Obx(() {
               if (!c.showOfferBanner) return const SizedBox.shrink();
 
@@ -210,11 +210,6 @@ class _ChatInput extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: Colors.grey.shade100,
-              child: const Icon(Icons.add),
-            ),
             const SizedBox(width: 10),
             Expanded(
               child: TextField(
@@ -284,7 +279,6 @@ class OfferBanner extends StatelessWidget {
     final accepted = status == 'accepted';
     final rejected = status == 'rejected';
 
-    // DEBUG biar kita yakin build ini jalan
     debugPrint(
       '🧱 OfferBanner.build => status=$status isSeller=$isSeller showActions=$showActions',
     );
@@ -374,8 +368,6 @@ class OfferBanner extends StatelessWidget {
           ),
 
           // ========== ACTIONS (SELLER + PENDING) ==========
-          // NOTE: aku sengaja tidak mengandalkan showActions saja,
-          // biar tombol pasti muncul kalau seller & pending.
           if (pending && isSeller) ...[
             const SizedBox(height: 12),
             Row(

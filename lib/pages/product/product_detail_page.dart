@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:prelovedly/view_model/like_controller.dart';
 import 'package:prelovedly/view_model/product_detail_controller.dart';
+import 'package:prelovedly/widgets/homepage_widget.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../routes/app_routes.dart';
 import '../../view_model/home_controller.dart';
@@ -112,8 +113,6 @@ class ProductDetailPage extends StatelessWidget {
                               sellerId: sellerId,
                               isMe: controller.isMe.value,
                               fetchSeller: controller.getSellerUser,
-
-                              // ✅ jika sold, jangan bisa message dari sini
                               onMessage: isSold
                                   ? () {
                                       Get.snackbar(
@@ -134,7 +133,12 @@ class ProductDetailPage extends StatelessWidget {
                                       );
                                     },
 
-                              onSeeProfile: () {},
+                              onSeeProfile: () {
+                                Get.toNamed(
+                                  Routes.shopProfile,
+                                  arguments: {'seller_id': sellerId},
+                                );
+                              },
                             ),
 
                             const SizedBox(height: 14),
@@ -225,6 +229,14 @@ class ProductDetailPage extends StatelessWidget {
                               value: categoryName.isEmpty ? '-' : categoryName,
                             ),
                             _KVRow(
+                              label: 'Ukuran',
+                              value: size.isEmpty ? '-' : size,
+                            ),
+                            _KVRow(
+                              label: 'Brand',
+                              value: brand.isEmpty ? '-' : brand,
+                            ),
+                            _KVRow(
                               label: 'Kondisi',
                               value: condition.isEmpty ? '-' : condition,
                             ),
@@ -248,68 +260,6 @@ class ProductDetailPage extends StatelessWidget {
                             const SizedBox(height: 18),
                             const Divider(height: 1),
                             const SizedBox(height: 16),
-
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: Text(
-                                    'Lainnya dari seller',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: () {},
-                                  child: const Text('>'),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-
-                            _OtherFromSeller(
-                              stream: controller.otherFromSellerStream(
-                                sellerId,
-                              ),
-                              onTap: (id) {
-                                Get.toNamed(
-                                  '/product-detail',
-                                  arguments: {
-                                    'id': id,
-                                    'seller_id': sellerId,
-                                    'is_me': controller.isMe.value,
-                                  },
-                                );
-                              },
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            const Text(
-                              'Kamu mungkin suka',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-
-                            _YouMayLike(
-                              stream: controller.youMayLikeStream(),
-                              onTap: (id, sid) {
-                                Get.toNamed(
-                                  '/product-detail',
-                                  arguments: {
-                                    'id': id,
-                                    'seller_id': sid,
-                                    'is_me': false,
-                                  },
-                                );
-                              },
-                            ),
-
-                            const SizedBox(height: 110),
                           ],
                         ),
                       ),
@@ -388,7 +338,6 @@ class ProductDetailPage extends StatelessWidget {
                       );
                     };
 
-                    // ✅ PRIORITAS 1: Produk ini sudah ada offer → Cek Offer
                     if (tOffer != null && tOffer.offer != null) {
                       negoLabel = 'Cek Offer';
                       onLeft = () {
@@ -401,14 +350,10 @@ class ProductDetailPage extends StatelessWidget {
                           },
                         );
                       };
-                    }
-                    // ✅ PRIORITAS 2: Sudah accepted dengan seller → Message (produk lain jadi message)
-                    else if (lockedToMessage) {
+                    } else if (lockedToMessage) {
                       negoLabel = 'Message';
                       onLeft = () async {
                         final cover = images.isNotEmpty ? images.first : '';
-
-                        // kalau sudah ada thread seller, langsung buka
                         if (tSeller != null) {
                           Get.toNamed(
                             Routes.chat,
@@ -680,13 +625,6 @@ class _SellerHeader extends StatelessWidget {
         final username = (user['username'] ?? 'seller').toString();
         final foto = (user['foto_profil_url'] ?? '').toString();
 
-        final double rating = (user['rating'] is num)
-            ? (user['rating'] as num).toDouble()
-            : 5.0;
-        final int ratingCount = (user['rating_count'] is num)
-            ? (user['rating_count'] as num).toInt()
-            : 41;
-
         return Row(
           children: [
             CircleAvatar(
@@ -713,15 +651,53 @@ class _SellerHeader extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, size: 16, color: Colors.blue),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${rating.toStringAsFixed(1)} ($ratingCount)',
-                          style: TextStyle(color: Colors.grey.shade700),
-                        ),
-                      ],
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('sellers')
+                          .doc(sellerId)
+                          .collection('reviews')
+                          .snapshots(),
+                      builder: (_, rs) {
+                        final docs = rs.data?.docs ?? [];
+
+                        if (docs.isEmpty) {
+                          return Row(
+                            children: List.generate(
+                              5,
+                              (_) => Icon(
+                                Icons.star_border,
+                                size: 16,
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                          );
+                        }
+
+                        var sum = 0;
+                        for (final d in docs) {
+                          final r = d.data()['rating'];
+                          final int rating = (r is num)
+                              ? r.toInt()
+                              : int.tryParse('$r') ?? 0;
+                          sum += rating.clamp(1, 5);
+                        }
+                        final avg = sum / docs.length;
+
+                        return Row(
+                          children: [
+                            StarRow(
+                              avg: avg,
+                              size: 16,
+                              color: Colors.amber,
+                            ), // dari home [file:18]
+                            const SizedBox(width: 6),
+                            Text(
+                              '${avg.toStringAsFixed(1)} (${docs.length})',
+                              style: TextStyle(color: Colors.grey.shade700),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -776,191 +752,6 @@ class _KVRow extends StatelessWidget {
         Divider(height: 1, color: Colors.grey.shade200),
         const SizedBox(height: 10),
       ],
-    );
-  }
-}
-
-/// ===================== OTHER FROM SELLER =====================
-/// NOTE: stream dikirim dari VM -> repo -> service.
-/// widget tidak boleh bikin query Firestore sendiri.
-class _OtherFromSeller extends StatelessWidget {
-  final Stream<List<Map<String, dynamic>>> stream;
-  final void Function(String id) onTap;
-
-  const _OtherFromSeller({required this.stream, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 130,
-      child: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: stream,
-        builder: (context, snap) {
-          final items = snap.data ?? [];
-
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Text(
-              'Error: ${snap.error}',
-              style: const TextStyle(color: Colors.red),
-            );
-          }
-          if (items.isEmpty) {
-            return Text(
-              'Belum ada produk lain',
-              style: TextStyle(color: Colors.grey.shade600),
-            );
-          }
-
-          return ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: items.length.clamp(0, 8),
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, i) {
-              final d = items[i];
-              final id = (d['id'] ?? '').toString();
-
-              final urls = ((d['image_urls'] as List?) ?? [])
-                  .map((e) => e.toString())
-                  .toList();
-              final thumb = (d['thumbnail_url'] ?? '').toString();
-              final img = thumb.isNotEmpty
-                  ? thumb
-                  : (urls.isNotEmpty ? urls.first : '');
-
-              final priceRaw = d['price'];
-              final price = priceRaw is int
-                  ? priceRaw
-                  : int.tryParse('$priceRaw') ?? 0;
-
-              return InkWell(
-                onTap: () => onTap(id),
-                child: SizedBox(
-                  width: 110,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          height: 90,
-                          width: 110,
-                          color: Colors.grey.shade200,
-                          child: img.isEmpty
-                              ? const Icon(Icons.image)
-                              : Image.network(img, fit: BoxFit.cover),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Rp ${NumberFormat.decimalPattern('id_ID').format(price)}',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// ===================== YOU MAY LIKE =====================
-/// NOTE: stream dikirim dari VM -> repo -> service.
-/// widget tidak query Firestore langsung.
-class _YouMayLike extends StatelessWidget {
-  final Stream<List<Map<String, dynamic>>> stream;
-  final void Function(String id, String sellerId) onTap;
-
-  const _YouMayLike({required this.stream, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 150,
-      child: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: stream,
-        builder: (context, snap) {
-          final items = snap.data ?? [];
-
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Text(
-              'Error: ${snap.error}',
-              style: const TextStyle(color: Colors.red),
-            );
-          }
-          if (items.isEmpty) {
-            return Text(
-              'Belum ada rekomendasi',
-              style: TextStyle(color: Colors.grey.shade600),
-            );
-          }
-
-          return ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: items.length.clamp(0, 10),
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, i) {
-              final d = items[i];
-              final id = (d['id'] ?? '').toString();
-              final sid = (d['seller_id'] ?? '').toString();
-
-              final urls = ((d['image_urls'] as List?) ?? [])
-                  .map((e) => e.toString())
-                  .toList();
-              final thumb = (d['thumbnail_url'] ?? '').toString();
-              final img = thumb.isNotEmpty
-                  ? thumb
-                  : (urls.isNotEmpty ? urls.first : '');
-
-              final priceRaw = d['price'];
-              final price = priceRaw is int
-                  ? priceRaw
-                  : int.tryParse('$priceRaw') ?? 0;
-
-              return InkWell(
-                onTap: () => onTap(id, sid),
-                child: SizedBox(
-                  width: 120,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          height: 95,
-                          width: 120,
-                          color: Colors.grey.shade200,
-                          child: img.isEmpty
-                              ? const Icon(Icons.image)
-                              : Image.network(img, fit: BoxFit.cover),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Rp ${NumberFormat.decimalPattern('id_ID').format(price)}',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
     );
   }
 }

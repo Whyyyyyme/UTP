@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -34,7 +35,6 @@ class ChatController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // args dari navigator
     final raw = (Get.arguments as Map<String, dynamic>?) ?? {};
     threadId = (raw['threadId'] ?? '').toString();
     peerId = (raw['peerId'] ?? '').toString();
@@ -48,6 +48,17 @@ class ChatController extends GetxController {
 
   void _bindStreams() {
     final uid = me;
+
+    if (productId.isNotEmpty) {
+      productSub?.cancel();
+      productSub = repo.productStream(productId: productId).listen((doc) {
+        final data = doc.data() ?? {};
+        productStatus.value = (data['status'] ?? '')
+            .toString()
+            .toLowerCase()
+            .trim();
+      });
+    }
 
     if (uid.isEmpty) {
       isLoading.value = false;
@@ -111,13 +122,15 @@ class ChatController extends GetxController {
     return me == off.buyerId;
   }
 
-  /// Banner tampil kalau offer ada (pending/accepted/rejected)
-  bool get showOfferBanner => hasOffer;
+  final productStatus = ''.obs;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? productSub;
+
+  bool get isProductSold => productStatus.value == 'sold';
+  bool get showOfferBanner => hasOffer && !isProductSold;
 
   /// Tombol Terima/Tolak hanya untuk seller saat pending
   bool get showOfferActions => hasOffer && isOfferPending && isSeller;
 
-  /// ✅ CTA "Beli sekarang" hanya untuk buyer saat offer diterima
   bool get showBuyNow => hasOffer && isOfferAccepted && isBuyer;
 
   String get offerBannerTitle {
@@ -323,6 +336,7 @@ class ChatController extends GetxController {
 
   @override
   void onClose() {
+    productSub?.cancel();
     textC.dispose();
     _threadSub?.cancel();
     _msgSub?.cancel();

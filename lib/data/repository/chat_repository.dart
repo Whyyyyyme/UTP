@@ -237,11 +237,16 @@ class ChatRepository {
     );
   }
 
-  // ========== HELPER ==========
   Future<DocumentSnapshot<Map<String, dynamic>>> getThreadDoc({
     required String uid,
     required String threadId,
   }) {
     return _service.threadRef(uid: uid, threadId: threadId).get();
+  }
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> productStream({
+    required String productId,
+  }) {
+    return _service.db.collection('products').doc(productId).snapshots();
   }
 }

@@ -14,44 +14,6 @@ class ProductService {
     });
   }
 
-  Stream<List<Map<String, dynamic>>> otherFromSellerStream({
-    required String sellerId,
-    required String excludeProductId,
-    int limit = 10,
-  }) {
-    return _db
-        .collection('products')
-        .where('status', isEqualTo: 'published')
-        .where('seller_id', isEqualTo: sellerId)
-        .orderBy('updated_at', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snap) {
-          return snap.docs
-              .where((d) => d.id != excludeProductId)
-              .map((d) => {'id': d.id, ...d.data()})
-              .toList();
-        });
-  }
-
-  Stream<List<Map<String, dynamic>>> youMayLikeStream({
-    required String excludeProductId,
-    int limit = 20,
-  }) {
-    return _db
-        .collection('products')
-        .where('status', isEqualTo: 'published')
-        .orderBy('updated_at', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snap) {
-          return snap.docs
-              .where((d) => d.id != excludeProductId)
-              .map((d) => {'id': d.id, ...d.data()})
-              .toList();
-        });
-  }
-
   Future<Map<String, dynamic>> getUserByUid(String uid) async {
     final snap = await _db
         .collection('users')

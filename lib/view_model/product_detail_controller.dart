@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -60,8 +62,6 @@ class ProductDetailController extends GetxController {
     }
     chatRepo = Get.find<ChatRepository>();
 
-    // ✅ load state tombol chat/offer
-    // dipanggil sekali saat halaman kebuka
     if (sellerIdArg.value.isNotEmpty && productId.value.isNotEmpty) {
       loadChatButtonsState(
         sellerId: sellerIdArg.value,
@@ -82,15 +82,8 @@ class ProductDetailController extends GetxController {
     return _repo.productStream(productId.value);
   }
 
-  Stream<List<Map<String, dynamic>>> otherFromSellerStream(String sellerId) {
-    return _repo.otherFromSellerStream(
-      sellerId: sellerId,
-      excludeProductId: productId.value,
-    );
-  }
-
-  Stream<List<Map<String, dynamic>>> youMayLikeStream() {
-    return _repo.youMayLikeStream(excludeProductId: productId.value);
+  Stream<Map<String, dynamic>?> productStreamById(String pid) {
+    return _repo.productStream(pid);
   }
 
   Future<Map<String, dynamic>> getSellerUser(String sellerId) {
@@ -244,7 +237,6 @@ class ProductDetailController extends GetxController {
   }) {
     final t = offerThread.value;
 
-    // ✅ sudah pernah nego produk ini → langsung ke chat thread yang sama
     if (t != null) {
       Get.toNamed(
         Routes.chat,
@@ -257,7 +249,6 @@ class ProductDetailController extends GetxController {
       return;
     }
 
-    // ✅ belum pernah nego → buka nego page
     Get.toNamed(
       Routes.nego,
       arguments: {
@@ -271,11 +262,6 @@ class ProductDetailController extends GetxController {
     );
   }
 
-  // =========================================================
-  // ✅ Untuk produk lain dari seller yang sama:
-  // tombol jadi "Message" => langsung ke thread terbaru dengan seller
-  // kalau belum ada, buat thread dulu lalu masuk chat
-  // =========================================================
   Future<void> openMessageSellerFromOtherProduct({
     required String sellerId,
     required String productId,
@@ -294,7 +280,6 @@ class ProductDetailController extends GetxController {
       return;
     }
 
-    // ✅ kalau sudah ada thread terbaru dengan seller, langsung pakai itu
     final tSeller = sellerChatThread.value;
     if (tSeller != null) {
       Get.toNamed(
@@ -308,7 +293,6 @@ class ProductDetailController extends GetxController {
       return;
     }
 
-    // kalau belum ada, create thread via ensureThread
     final me = authC.user.value;
     final myName = (me?.username.isNotEmpty == true)
         ? me!.username
@@ -332,7 +316,6 @@ class ProductDetailController extends GetxController {
       peerPhoto: sellerPhoto,
     );
 
-    // refresh cache state (optional)
     await loadChatButtonsState(sellerId: sellerId, productId: productId);
 
     Get.toNamed(
@@ -345,19 +328,41 @@ class ProductDetailController extends GetxController {
     );
   }
 
-  /// (fungsi lama kamu) tetap boleh dipakai kalau mau
   Future<void> openChatFromProduct({
     required String sellerId,
     required String productId,
     required String productTitle,
     required String productImage,
   }) async {
-    // biar konsisten, arahkan ke openMessageSellerFromOtherProduct
     await openMessageSellerFromOtherProduct(
       sellerId: sellerId,
       productId: productId,
       productTitle: productTitle,
       productImage: productImage,
     );
+  }
+
+  final sellerRatingAvg = 0.0.obs;
+  final sellerRatingTotal = 0.obs;
+  StreamSubscription? _sellerReviewSub;
+
+  void bindSellerRating(String sellerUid) {
+    _sellerReviewSub?.cancel();
+    _sellerReviewSub = FirebaseFirestore.instance
+        .collection('sellers')
+        .doc(sellerUid)
+        .collection('reviews')
+        .snapshots()
+        .listen((snap) {
+          final total = snap.docs.length;
+          var sum = 0;
+          for (final d in snap.docs) {
+            final r = (d.data()['rating'] ?? 0);
+            final rating = (r is int ? r : int.tryParse('$r') ?? 0).clamp(1, 5);
+            sum += rating;
+          }
+          sellerRatingTotal.value = total;
+          sellerRatingAvg.value = total == 0 ? 0.0 : sum / total;
+        });
   }
 }
