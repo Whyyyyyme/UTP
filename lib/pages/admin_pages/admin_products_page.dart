@@ -40,9 +40,75 @@ class AdminProductsPage extends StatelessWidget {
     return result == true;
   }
 
+  /// ✅ Helper sold-out: produk yang sudah terjual tidak ditampilkan
+  bool _isSoldOut(Map<String, dynamic> data) {
+    final status = (data['status'] ?? '').toString().toLowerCase();
+
+    final bool byStatus =
+        status == 'sold' ||
+        status == 'sold_out' ||
+        status == 'soldout' ||
+        status == 'checkout' ||
+        status == 'checked_out' ||
+        status == 'completed' ||
+        status == 'done' ||
+        status == 'terjual';
+
+    final bool byBool =
+        data['isSold'] == true ||
+        data['sold'] == true ||
+        data['is_sold'] == true ||
+        data['isSoldOut'] == true ||
+        data['soldOut'] == true;
+
+    final dynamic stockRaw = data['stock'];
+    final bool byStock = stockRaw is num ? stockRaw <= 0 : false;
+
+    return byStatus || byBool || byStock;
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(AdminProductsController());
+
+    // ✅ cache nama seller supaya tidak fetch berulang
+    final Map<String, Future<String>> sellerNameCache = {};
+
+    Future<String> fetchSellerName(String sellerId) {
+      if (sellerId.trim().isEmpty || sellerId == '-') {
+        return Future.value('Tidak diketahui');
+      }
+      return sellerNameCache.putIfAbsent(sellerId, () async {
+        try {
+          // ✅ asumsi: collection users, docId = UID
+          final snap = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(sellerId)
+              .get();
+
+          if (!snap.exists) return 'Tidak diketahui';
+
+          final data = snap.data() as Map<String, dynamic>;
+
+          // coba beberapa kemungkinan nama field
+          final name =
+              (data['username'] ??
+                      data['name'] ??
+                      data['full_name'] ??
+                      data['fullName'] ??
+                      data['displayName'] ??
+                      data['email'] ??
+                      '')
+                  .toString()
+                  .trim();
+
+          if (name.isEmpty) return 'Tidak diketahui';
+          return name;
+        } catch (_) {
+          return 'Tidak diketahui';
+        }
+      });
+    }
 
     return Scaffold(
       backgroundColor: _bg,
@@ -98,7 +164,14 @@ class AdminProductsPage extends StatelessWidget {
                   final rawDocs = snapshot.data!.docs;
 
                   return Obx(() {
-                    final docs = controller.applyFilter(rawDocs);
+                    // ✅ 1) Hilangkan produk sold out dulu
+                    final notSoldDocs = rawDocs.where((d) {
+                      final data = d.data();
+                      return !_isSoldOut(data);
+                    }).toList();
+
+                    // ✅ 2) Baru apply filter search & dropdown
+                    final docs = controller.applyFilter(notSoldDocs);
 
                     if (docs.isEmpty) {
                       return const Center(
@@ -117,10 +190,13 @@ class AdminProductsPage extends StatelessWidget {
                         final productId = (data['id'] ?? doc.id).toString();
                         final title = (data['title'] ?? '-').toString();
                         final price = data['price'] ?? 0;
-                        final sellerId = (data['seller_id'] ?? '-').toString();
-                        final status = (data['status'] ?? 'published')
-                            .toString();
 
+                        // seller id
+                        final sellerId = (data['seller_id'] ?? '-').toString();
+
+                        final status = (data['status'] ?? 'published')
+                            .toString()
+                            .toLowerCase();
                         final isPublished = status == 'published';
 
                         final urls = (data['image_urls'] is List)
@@ -139,24 +215,33 @@ class AdminProductsPage extends StatelessWidget {
                               arguments: {'productId': productId},
                             );
                           },
-                          child: _ProductCard(
-                            productId: productId,
-                            title: title,
-                            price: price.toString(),
-                            sellerId: sellerId,
-                            thumbUrl: thumb,
-                            isPublished: isPublished,
-                            togglingIdRx: controller.togglingProductId,
-                            onToggle: (val) async {
-                              final ok = await _confirmToggle(
-                                nextPublished: val,
-                                title: title,
-                              );
-                              if (!ok) return;
+                          child: FutureBuilder<String>(
+                            future: fetchSellerName(sellerId),
+                            builder: (context, snapName) {
+                              final sellerName = (snapName.data ?? 'Memuat...')
+                                  .toString();
 
-                              await controller.togglePublished(
+                              return _ProductCard(
                                 productId: productId,
-                                nextPublished: val,
+                                title: title,
+                                price: price.toString(),
+                                sellerId: sellerId,
+                                sellerName: sellerName, // ✅ tampil nama
+                                thumbUrl: thumb,
+                                isPublished: isPublished,
+                                togglingIdRx: controller.togglingProductId,
+                                onToggle: (val) async {
+                                  final ok = await _confirmToggle(
+                                    nextPublished: val,
+                                    title: title,
+                                  );
+                                  if (!ok) return;
+
+                                  await controller.togglePublished(
+                                    productId: productId,
+                                    nextPublished: val,
+                                  );
+                                },
                               );
                             },
                           ),
@@ -337,7 +422,10 @@ class _ProductCard extends StatelessWidget {
   final String productId;
   final String title;
   final String price;
+
   final String sellerId;
+  final String sellerName;
+
   final String? thumbUrl;
   final bool isPublished;
 
@@ -349,6 +437,7 @@ class _ProductCard extends StatelessWidget {
     required this.title,
     required this.price,
     required this.sellerId,
+    required this.sellerName,
     required this.thumbUrl,
     required this.isPublished,
     required this.togglingIdRx,
@@ -414,16 +503,32 @@ class _ProductCard extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 6),
+
+                // ✅ tampil nama seller
                 Text(
-                  'Seller: $sellerId',
+                  'Seller: $sellerName',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.grey,
                     fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+
+                // (opsional) kalau kamu masih mau lihat UID kecil:
+                const SizedBox(height: 2),
+                Text(
+                  sellerId,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+
                 const SizedBox(height: 8),
                 _Pill(text: statusText, color: statusColor),
               ],
