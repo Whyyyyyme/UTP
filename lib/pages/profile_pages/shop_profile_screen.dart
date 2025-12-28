@@ -381,11 +381,6 @@ class ShopProfileScreen extends StatelessWidget {
                             Center(
                               child: Column(
                                 children: [
-                                  Image.asset(
-                                    'assets/eyes.png',
-                                    width: 100,
-                                    height: 100,
-                                  ),
                                   const SizedBox(height: 16),
                                   const Text(
                                     'Belum ada item',

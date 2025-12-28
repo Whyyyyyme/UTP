@@ -40,7 +40,7 @@ class LoginPage extends StatelessWidget {
               // Background image
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/baground1.jpg', // ganti sesuai file kamu
+                  'assets/images/baground1.jpg',
                   fit: BoxFit.cover,
                 ),
               ),
@@ -106,12 +106,9 @@ class LoginPage extends StatelessWidget {
                             ),
                             text: "Masuk lewat Google",
                             onPressed: () async {
-                              try {
-                                await authC.signInWithGoogle();
-                                Get.offAllNamed(Routes.home);
-                              } catch (e) {
-                                _snack('Google Sign-In gagal: $e');
-                              }
+                              final ok = await authC.signInWithGoogle();
+                              if (!ok) return;
+                              Get.offAllNamed(Routes.home);
                             },
                           ),
 

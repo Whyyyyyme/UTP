@@ -95,4 +95,33 @@ class CartController extends GetxController {
       return (false, e.toString());
     }
   }
+
+  Future<(bool, String)> setItemSelected({
+    required String viewerId,
+    required String productId,
+    required bool selected,
+  }) async {
+    if (viewerId.isEmpty) return (false, 'Kamu belum login');
+    if (productId.isEmpty) return (false, 'productId kosong');
+    try {
+      await repo.setItemSelected(productId: productId, selected: selected);
+      return (true, 'OK');
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  Future<(bool, String)> selectOnlySeller({
+    required String viewerId,
+    required String sellerUid,
+  }) async {
+    if (viewerId.isEmpty) return (false, 'Kamu belum login');
+    if (sellerUid.trim().isEmpty) return (false, 'sellerUid kosong');
+    try {
+      await repo.selectOnlySeller(sellerUid: sellerUid);
+      return (true, 'OK');
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
 }

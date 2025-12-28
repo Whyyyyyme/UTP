@@ -185,9 +185,7 @@ class _CheckoutPaymentPageState extends State<CheckoutPaymentPage> {
               icon: Icons.account_balance_outlined,
               title: 'Transfer\nBank',
               openedGroup: openedGroup,
-              previewRight: const _LogoRow(
-                texts: ['mandiri', 'BSI', 'BNI', '+3'],
-              ),
+              previewRight: const _LogoRow(texts: ['mandiri', 'BNI', '+1']),
               children: [
                 _PaymentOptionTile(
                   id: 'va_mandiri',
@@ -243,9 +241,9 @@ class _CheckoutPaymentPageState extends State<CheckoutPaymentPage> {
               ),
               children: [
                 _PaymentOptionTile(
-                  id: 'ewaller_ovo',
+                  id: 'ewallet_ovo',
                   title: 'OVO',
-                  subtitle: 'Saldo / kartu',
+                  subtitle: 'Saldo',
                   onTap: () => _pick(
                     PaymentMethodModel(
                       id: 'ewallet_ovo',
@@ -313,7 +311,6 @@ class _CheckoutPaymentPageState extends State<CheckoutPaymentPage> {
 
             const SizedBox(height: 20),
 
-            // tombol bawah optional (kalau kamu mau ada)
             Obx(() {
               final picked = vm.selectedPayment.value;
 
@@ -328,7 +325,6 @@ class _CheckoutPaymentPageState extends State<CheckoutPaymentPage> {
                           return;
                         }
 
-                        // ✅ baru buka loading
                         Get.dialog(
                           const Center(child: CircularProgressIndicator()),
                           barrierDismissible: false,

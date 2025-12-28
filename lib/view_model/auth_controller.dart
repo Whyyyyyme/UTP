@@ -244,7 +244,9 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<bool> signInWithGoogle() async {
+    if (isLoading.value) return false;
+
     try {
       isLoading.value = true;
       errorMessage.value = null;
@@ -263,7 +265,8 @@ class AuthController extends GetxController {
 
         final idToken = result.authentication.idToken;
         if (idToken == null || idToken.isEmpty) {
-          throw Exception('ID token kosong');
+          // ini kasus user cancel / tidak dapat token
+          return false;
         }
 
         final credential = GoogleAuthProvider.credential(idToken: idToken);
@@ -272,7 +275,7 @@ class AuthController extends GetxController {
 
       final fbUser = userCred.user;
       final uid = fbUser?.uid;
-      if (uid == null || uid.isEmpty) return;
+      if (uid == null || uid.isEmpty) return false;
 
       await _authService.ensureUserProfileExists(
         uid: uid,
@@ -283,9 +286,14 @@ class AuthController extends GetxController {
 
       user.value = await _authService.getUserProfile(uid);
       _syncSessionViewer();
+      return user.value != null;
     } catch (e) {
+      // penting: pastikan state tetap dianggap belum login
+      user.value = null;
+      _syncSessionViewer(); // kalau viewerId bergantung user
       errorMessage.value = 'Google Sign-In gagal: $e';
       Get.snackbar('Error', errorMessage.value!);
+      return false;
     } finally {
       isLoading.value = false;
     }

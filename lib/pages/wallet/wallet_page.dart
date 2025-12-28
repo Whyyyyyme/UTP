@@ -38,7 +38,7 @@ class WalletPage extends GetView<WalletOrdersController> {
                 value: rupiah(controller.pendingBalance.value),
                 onInfo: () => Get.snackbar(
                   'Saldo tertunda',
-                  'Opsi B: saldo masuk setelah pesanan selesai.',
+                  'saldo masuk setelah pesanan selesai.',
                 ),
               ),
               const SizedBox(height: 12),

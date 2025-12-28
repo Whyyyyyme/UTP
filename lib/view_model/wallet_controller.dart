@@ -19,7 +19,6 @@ class WalletController extends GetxController {
   final wallet = Rxn<WalletModel>();
   final availableBalance = 0.obs;
 
-  // opsi B: tidak ada pending, tampilkan 0
   final pendingBalance = 0.obs;
 
   final transactions = <WalletTransactionModel>[].obs;
@@ -70,7 +69,7 @@ class WalletController extends GetxController {
           (w) {
             wallet.value = w;
             availableBalance.value = w.availableBalance;
-            pendingBalance.value = 0; // opsi B
+            pendingBalance.value = 0;
             isLoading.value = false;
           },
           onError: (e) {

@@ -97,7 +97,7 @@ class CheckoutController extends GetxController {
       error.value = null;
       await _repo.backfillPromoToCart(buyerId);
 
-      final cart = await _repo.getCartItems(buyerId);
+      final cart = await _repo.getSelectedCartItems(buyerId);
       items.assignAll(cart);
 
       final addr = await _repo.getDefaultAddress(buyerId);
