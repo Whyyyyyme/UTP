@@ -132,11 +132,20 @@ class CartRepository {
 
         'promo_shipping_active': promoShippingActive,
         'promo_shipping_amount': promoShippingAmount,
+        'selected': true,
 
         'updated_at': FieldValue.serverTimestamp(),
         'created_at': FieldValue.serverTimestamp(),
       },
     );
+  }
+
+  Future<void> setItemSelected({
+    required String productId,
+    required bool selected,
+  }) async {
+    if (productId.isEmpty) throw Exception('productId kosong');
+    await _service.setSelected(productId: productId, selected: selected);
   }
 
   Future<void> removeFromCart({required String productId}) async {
@@ -163,5 +172,10 @@ class CartRepository {
     final docs = await _service.getItemsBySeller(sellerId: sellerId);
     if (docs.isEmpty) return;
     await _service.batchDeleteDocs(docs);
+  }
+
+  Future<void> selectOnlySeller({required String sellerUid}) async {
+    if (sellerUid.trim().isEmpty) throw Exception('sellerUid kosong');
+    await _service.selectOnlySeller(sellerUid: sellerUid);
   }
 }

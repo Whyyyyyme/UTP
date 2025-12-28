@@ -100,13 +100,12 @@ class _CartPageState extends State<CartPage> {
               );
             }
 
-            // GROUP BY seller_id
             final Map<String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>
             grouped = {};
             for (final d in docs) {
-              final sid = (d.data()['seller_id'] ?? '').toString();
-              grouped.putIfAbsent(sid, () => []);
-              grouped[sid]!.add(d);
+              final suid = (d.data()['seller_uid'] ?? '').toString();
+              grouped.putIfAbsent(suid, () => []);
+              grouped[suid]!.add(d);
             }
 
             final sellerIds = grouped.keys.toList()..sort();
@@ -151,7 +150,15 @@ class _CartPageState extends State<CartPage> {
                     Get.snackbar(res.$1 ? 'Sukses' : 'Error', res.$2);
                   },
 
-                  onBuyNow: () {
+                  onBuyNow: () async {
+                    final res = await cartC.selectOnlySeller(
+                      viewerId: viewerId,
+                      sellerUid: sellerId,
+                    );
+                    if (!res.$1) {
+                      Get.snackbar('Error', res.$2);
+                      return;
+                    }
                     Get.toNamed(Routes.checkout);
                   },
 

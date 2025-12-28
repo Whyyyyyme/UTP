@@ -42,7 +42,6 @@ class ShippingService {
     }, SetOptions(merge: true));
   }
 
-  /// ✅ Seed kalau kosong + Backfill fee/eta kalau sudah ada dokumen lama
   Future<void> seedDefaultIfEmpty(String sellerId) async {
     final col = shippingCol(sellerId);
     final now = FieldValue.serverTimestamp();

@@ -37,38 +37,7 @@ class SettingsPage extends StatelessWidget {
                   Get.toNamed(Routes.editProfile);
                 },
               ),
-
               const Divider(height: 1),
-              _SettingsItem(
-                icon: Icons.settings_outlined,
-                label: 'Account settings',
-                onTap: () {
-                  Get.snackbar(
-                    'Account settings',
-                    'Fitur ini belum tersedia',
-                    snackPosition: SnackPosition.TOP,
-                  );
-                },
-              ),
-              const Divider(height: 1),
-              _SettingsItem(
-                icon: Icons.notifications_none,
-                label: 'Notifications',
-                onTap: () {
-                  Get.snackbar(
-                    'Notifications',
-                    'Fitur ini belum tersedia',
-                    snackPosition: SnackPosition.TOP,
-                  );
-                },
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          _SettingsCard(
-            children: [
               _SettingsItem(
                 icon: Icons.location_on_outlined,
                 label: 'Alamat penjual',

@@ -6,7 +6,6 @@ class CartService {
 
   final FirebaseFirestore _db;
 
-  // ✅ selalu pakai AUTH UID sebagai docId carts
   String authUid() {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (uid.isEmpty) {
@@ -88,5 +87,37 @@ class CartService {
       throw Exception('User dengan uid=$authUid tidak ditemukan');
     }
     return q.docs.first.reference.get();
+  }
+
+  Future<void> setSelected({
+    required String productId,
+    required bool selected,
+  }) {
+    return _itemsRef().doc(productId).set({
+      'selected': selected,
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllCartItems() {
+    return _itemsRef().get();
+  }
+
+  Future<void> selectOnlySeller({required String sellerUid}) async {
+    final snap = await _itemsRef().get();
+    final batch = _db.batch();
+
+    for (final d in snap.docs) {
+      final data = d.data();
+      final itemSellerUid = (data['seller_uid'] ?? '').toString();
+      final shouldSelect = itemSellerUid == sellerUid;
+
+      batch.set(d.reference, {
+        'selected': shouldSelect,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
   }
 }

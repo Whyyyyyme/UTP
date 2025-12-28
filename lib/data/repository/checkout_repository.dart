@@ -7,16 +7,18 @@ class CheckoutRepository {
   CheckoutRepository(this._service);
   final CheckoutService _service;
 
-  Future<List<CheckoutItemModel>> getCartItems(String uid) async {
-    final snap = await _service.cartItemsRef(uid).get();
+  Future<List<CheckoutItemModel>> getSelectedCartItems(String uid) async {
+    final snap = await _service
+        .cartItemsRef(uid)
+        .where('selected', isEqualTo: true)
+        .get();
+
     return snap.docs
         .map((d) => CheckoutItemModel.fromMap(d.data(), d.id))
         .toList();
   }
 
   Future<Map<String, dynamic>> getDefaultAddress(String uid) async {
-    // kamu bisa sesuaikan dengan skema addresses kamu
-    // di sini contoh: users/{uid}/addresses: ambil yang is_default==true, fallback first
     final q = await _service.db
         .collection('users')
         .doc(uid)
@@ -30,7 +32,7 @@ class CheckoutRepository {
   }
 
   Future<void> createOrder({
-    required String buyerId, // boleh ada, tapi kita pake auth uid
+    required String buyerId,
     required List<CheckoutItemModel> items,
     required Map<String, dynamic> address,
     required Map<String, dynamic> shipping,
@@ -46,14 +48,12 @@ class CheckoutRepository {
     final shippingFeeFinal = _toInt(shipping['fee']);
     final total = subtotal + shippingFeeFinal;
 
-    // seller_id (docId) optional
     final sellerIds = items
         .map((e) => e.sellerId)
         .where((e) => e.isNotEmpty)
         .toSet()
         .toList();
 
-    // ✅ INI YANG DIPAKE RULES + QUERY SOLD
     final sellerUids = items
         .map((e) => e.sellerUid)
         .where((e) => e.isNotEmpty)
@@ -73,7 +73,6 @@ class CheckoutRepository {
       'buyer_id': buyerUid,
       'seller_uids': sellerUids,
 
-      // optional (buat UI/debug)
       'seller_ids': sellerIds,
 
       'status': 'paid',
@@ -111,7 +110,6 @@ class CheckoutRepository {
         'created_at': now,
       });
 
-      // ✅ sold_to juga auth uid
       batch.update(_service.productRef(it.productId), {
         'status': 'sold',
         'sold_to': buyerUid,
@@ -120,9 +118,9 @@ class CheckoutRepository {
       });
     }
 
-    final cartSnap = await _service.cartItemsRef(buyerUid).get();
-    for (final d in cartSnap.docs) {
-      batch.delete(d.reference);
+    for (final it in items) {
+      final ref = _service.cartItemsRef(buyerUid).doc(it.productId);
+      batch.delete(ref);
     }
 
     await batch.commit();

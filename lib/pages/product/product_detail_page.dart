@@ -656,8 +656,6 @@ class _CircleBtn extends StatelessWidget {
 }
 
 /// ===================== SELLER HEADER =====================
-/// NOTE: Tidak query Firestore di sini.
-/// Data seller diambil via `fetchSeller(sellerId)` dari VM/Repo.
 class _SellerHeader extends StatelessWidget {
   final String sellerId;
   final bool isMe;
