@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:prelovedly/routes/app_routes.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -158,15 +159,12 @@ class _DashboardContent extends StatelessWidget {
     ];
 
     // Tinggi item menu berbeda per ukuran (biar aman)
-    final double menuExtent = menuColumns >= 3
-        ? 110
-        : 126; // desktop lebih pendek
+    final double menuExtent = menuColumns >= 3 ? 110 : 126;
 
     return Column(
       children: [
         _Header(compact: headerCompact),
         const SizedBox(height: 16),
-
         const _SectionTitle(
           title: 'Ringkasan',
           subtitle: 'Statistik aplikasi secara cepat',
@@ -188,14 +186,13 @@ class _DashboardContent extends StatelessWidget {
         ),
 
         const SizedBox(height: 18),
-
         const _SectionTitle(
           title: 'Menu Admin',
           subtitle: 'Kelola modul utama aplikasi',
         ),
         const SizedBox(height: 10),
 
-        // ✅ MENU: juga fixed height (anti overflow)
+        // ✅ MENU: fixed height (anti overflow)
         Expanded(
           child: GridView.builder(
             itemCount: menus.length,
@@ -203,7 +200,7 @@ class _DashboardContent extends StatelessWidget {
               crossAxisCount: menuColumns,
               mainAxisSpacing: 14,
               crossAxisSpacing: 14,
-              mainAxisExtent: menuExtent, // ✅ kunci hilangkan overflow
+              mainAxisExtent: menuExtent,
             ),
             itemBuilder: (context, i) => menus[i],
           ),
@@ -219,6 +216,41 @@ class _DashboardContent extends StatelessWidget {
 class _Header extends StatelessWidget {
   final bool compact;
   const _Header({required this.compact});
+
+  Future<void> _logout() async {
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Yakin ingin keluar dari akun admin?'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
+
+    if (ok != true) return;
+
+    try {
+      await FirebaseAuth.instance.signOut();
+
+      // ✅ PENTING: hapus semua halaman sebelumnya supaya tidak bisa back ke admin
+      Get.offAllNamed(Routes.login); // <-- ganti kalau route login kamu beda
+    } catch (e) {
+      Get.snackbar(
+        'Logout gagal',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -264,10 +296,9 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
+
           IconButton(
-            onPressed: () {
-              // TODO: sambungkan logout
-            },
+            onPressed: _logout,
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
             tooltip: 'Logout',
           ),
@@ -545,7 +576,7 @@ class _StatCard extends StatelessWidget {
 }
 
 /// ==============================
-/// MENU CARD (ANTI OVERFLOW)
+/// MENU CARD
 /// ==============================
 class _MenuCard extends StatelessWidget {
   final IconData icon;
