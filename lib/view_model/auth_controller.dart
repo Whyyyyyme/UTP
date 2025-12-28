@@ -78,7 +78,7 @@ class AuthController extends GetxController {
 
         // ❗Jangan navigate di sini kalau flow kamu diatur dari page/register controller.
         // Kalau kamu ingin tetap auto-masuk setelah register, uncomment ini:
-        // Get.offAllNamed(Routes.home);
+        Get.offAllNamed(Routes.home);
       }
     } on FirebaseAuthException catch (e) {
       errorMessage.value = _firebaseErrorMapper(e.code);
