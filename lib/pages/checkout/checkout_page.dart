@@ -31,6 +31,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return "Rp $buf";
   }
 
+  late Worker _uidWorker;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +43,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
     if (uid.isNotEmpty) {
       vm.load(uid);
     }
+
+    _uidWorker = ever<String>(session.viewerId, (uid) {
+      if (uid.trim().isNotEmpty) vm.load(uid);
+    });
+  }
+
+  @override
+  void dispose() {
+    _uidWorker.dispose();
+    super.dispose();
   }
 
   Future<void> _pickShipping(String sellerId) async {
