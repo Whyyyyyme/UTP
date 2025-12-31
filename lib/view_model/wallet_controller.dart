@@ -108,10 +108,7 @@ class WalletController extends GetxController {
 
   bool get canWithdraw => availableBalance.value > 0;
 
-  void withdraw() {
-    // nanti kamu bisa sambungkan ke flow pencairan
-    Get.snackbar('Info', 'Fitur cairkan saldo belum diaktifkan.');
-  }
+  void withdraw() {}
 
   void _cancel() {
     _walletSub?.cancel();

@@ -26,4 +26,16 @@ class WalletRepository {
               snap.docs.map((d) => WalletTransactionModel.fromDoc(d)).toList(),
         );
   }
+
+  Future<int> withdrawAll({
+    required String uid,
+    required String bank,
+    required String accountNumber,
+  }) {
+    return _service.withdrawAll(
+      uid: uid,
+      bank: bank,
+      accountNumber: accountNumber,
+    );
+  }
 }

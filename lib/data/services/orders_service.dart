@@ -38,6 +38,7 @@ class OrdersService {
     return ordersRef()
         .where('seller_uids', arrayContains: sellerAuthUid)
         .where('status', isEqualTo: 'received')
+        .where('is_withdrawn', isEqualTo: false)
         .orderBy('created_at', descending: true)
         .snapshots();
   }

@@ -29,10 +29,10 @@ class _SellAddressIntroPageState extends State<SellAddressIntroPage> {
     if (!mounted) return;
 
     if (hasAddress) {
-      Get.offNamed(Routes.sellAddressIntro);
-    } else {
-      setState(() => _checking = false);
+      Get.offNamed(Routes.sellProduct);
+      return;
     }
+    setState(() => _checking = false);
   }
 
   Future<void> _afterAddAddress() async {
@@ -75,7 +75,7 @@ class _SellAddressIntroPageState extends State<SellAddressIntroPage> {
 
             Expanded(
               child: Center(
-                child: Image.asset('assets/images/map_pin.png', height: 220),
+                child: Image.asset('assets/icons/pin.jpg', height: 220),
               ),
             ),
 

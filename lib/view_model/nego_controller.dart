@@ -20,19 +20,13 @@ class NegoController extends GetxController {
 
   final TextEditingController priceC = TextEditingController();
 
-  // data produk
   late final String productId;
   late final String sellerId;
   late final String title;
   late final String imageUrl;
   late final int originalPrice;
-
-  // apakah nego dibuka dari chat?
-  // kalau dari chat, setelah kirim offer cukup Get.back()
-  // kalau dari product detail (belum masuk chat), setelah kirim offer arahkan ke ChatPage
   late final bool fromChat;
 
-  // config diskon
   final int minDiscountPercent = 40;
 
   int get minOfferPrice {
@@ -54,7 +48,6 @@ class NegoController extends GetxController {
     final p = args['price'];
     originalPrice = p is int ? p : int.tryParse('$p') ?? 0;
 
-    // flag asal halaman
     fromChat = (args['fromChat'] == true);
 
     priceC.text = '';
@@ -109,11 +102,9 @@ class NegoController extends GetxController {
     try {
       isLoading.value = true;
 
-      // 1️⃣ ambil meta user (boleh dummy dulu)
       final buyerMeta = await repo.getUserMeta(buyerId);
       final sellerMeta = await repo.getUserMeta(sellerId);
 
-      // 2️⃣ pastikan THREAD ADA
       final threadId = await repo.ensureThreadId(
         buyerId: buyerId,
         sellerId: sellerId,
@@ -127,7 +118,6 @@ class NegoController extends GetxController {
         sellerPhoto: sellerMeta.photoUrl,
       );
 
-      // 3️⃣ KIRIM OFFER via ChatRepository (SINGLE SOURCE OF TRUTH)
       final chatRepo = ChatRepository(ChatService(FirebaseFirestore.instance));
 
       await chatRepo.sendOffer(
@@ -138,7 +128,6 @@ class NegoController extends GetxController {
         offerPrice: offer,
       );
 
-      // 4️⃣ LANGSUNG MASUK CHAT
       Get.offNamed(
         Routes.chat,
         arguments: {

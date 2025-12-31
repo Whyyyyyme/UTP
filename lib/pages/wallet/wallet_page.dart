@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:prelovedly/models/order_model.dart';
+import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/view_model/wallet_orders_controller.dart';
 
 class WalletPage extends GetView<WalletOrdersController> {
@@ -26,10 +27,7 @@ class WalletPage extends GetView<WalletOrdersController> {
       body: Obx(() {
         final err = controller.error.value;
         return RefreshIndicator(
-          onRefresh: () async {
-            // rebind paksa kalau mau
-            // controller.bind(FirebaseAuth.instance.currentUser!.uid);
-          },
+          onRefresh: () async {},
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
@@ -52,7 +50,7 @@ class WalletPage extends GetView<WalletOrdersController> {
               _BalanceCard(
                 balanceText: rupiah(controller.availableBalance.value),
                 buttonEnabled: controller.canWithdraw,
-                onWithdraw: controller.withdraw,
+                onWithdraw: () => Get.toNamed(Routes.withdraw),
               ),
               const SizedBox(height: 16),
               if (err != null) ...[

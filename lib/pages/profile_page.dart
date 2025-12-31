@@ -196,20 +196,6 @@ class ProfilePage extends StatelessWidget {
                 Get.toNamed(Routes.settings);
               },
             ),
-
-            // Mode Liburan
-            SwitchListTile.adaptive(
-              title: const Text('Mode liburan'),
-              value: false,
-              activeColor: Theme.of(context).colorScheme.primary,
-              onChanged: (bool value) {
-                // TODO: handle toggle mode liburan
-              },
-              secondary: Icon(
-                Icons.notifications_outlined,
-                color: Colors.grey[600],
-              ),
-            ),
           ],
         ),
       );

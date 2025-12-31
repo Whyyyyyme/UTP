@@ -36,7 +36,7 @@ class HomePage extends StatelessWidget {
           currentIndex: current,
           onIndexChanged: (index) {
             if (index == 2) {
-              Get.toNamed(Routes.sellProduct);
+              Get.toNamed(Routes.sellAddressIntro);
               return;
             }
             nav.changeTab(index);
@@ -64,32 +64,32 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Padding(
         padding: const EdgeInsets.only(left: 12),
         child: Hero(
-        tag: 'search_bar_anim', // Tag unik untuk animasi
-        child: Material( // Tambahkan Material agar Hero tidak pecah saat transisi
-          color: Colors.transparent,
-          child: Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.black, width: 1.2),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.search_outlined, size: 20),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Cari items, brand, atau kategori',
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
+          tag: 'search_bar_anim',
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.black, width: 1.2),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.search_outlined, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Cari items, brand, atau kategori',
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
       ),
       actions: [
         Padding(

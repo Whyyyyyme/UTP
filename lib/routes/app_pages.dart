@@ -59,6 +59,7 @@ import 'package:prelovedly/pages/sell_pages/sell_page.dart';
 import 'package:prelovedly/pages/sell_pages/style_picker_page.dart';
 import 'package:prelovedly/pages/profile_pages/setting/seller_shipping_page.dart';
 import 'package:prelovedly/pages/wallet/wallet_page.dart';
+import 'package:prelovedly/pages/wallet/withdraw_page.dart';
 import 'package:prelovedly/view_model/cart_controller.dart';
 import 'package:prelovedly/view_model/chat_controller.dart';
 import 'package:prelovedly/view_model/checkout_controller.dart';
@@ -903,6 +904,23 @@ class AppPages {
         }
         if (!Get.isRegistered<WalletOrdersController>()) {
           Get.put<WalletOrdersController>(
+            WalletOrdersController(Get.find<OrdersRepository>()),
+            permanent: false,
+          );
+        }
+      }),
+    ),
+
+    GetPage(
+      name: Routes.withdraw,
+      page: () => const WithdrawPage(),
+      binding: BindingsBuilder(() {
+        AppPages.ensureGlobals();
+        if (!Get.isRegistered<OrdersRepository>()) {
+          Get.lazyPut<OrdersRepository>(() => OrdersRepository(), fenix: true);
+        }
+        if (!Get.isRegistered<WalletOrdersController>()) {
+          Get.put(
             WalletOrdersController(Get.find<OrdersRepository>()),
             permanent: false,
           );
