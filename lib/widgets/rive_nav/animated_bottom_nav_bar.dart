@@ -38,49 +38,65 @@ class _AnimatedBottomNavBarUTPState extends State<AnimatedBottomNavBarUTP> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF17203A).withOpacity(0.95),
-          borderRadius: const BorderRadius.all(Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              offset: const Offset(0, 10),
-              blurRadius: 20,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(utpBottomNavItems.length, (index) {
-            final navBar = utpBottomNavItems[index];
+      top: false,
+      child: Padding(
+        // 🔽 jarak bawah diperkecil (biar tidak kegedean)
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+        child: Container(
+          // 🔽 TINGGI NAV DIPERKECIL
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF17203A).withOpacity(0.80),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.20),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(utpBottomNavItems.length, (index) {
+              final navBar = utpBottomNavItems[index];
+              final bool isCenter = index == 2;
 
-            return BtmNavItem(
-              navBar: navBar,
-              selectedNav: selectedNav,
-              press: () {
-                if (navBar.rive.status != null) {
-                  RiveUtils.changeSMIBoolState(navBar.rive.status!);
-                }
+              return Expanded(
+                child: BtmNavItem(
+                  navBar: navBar,
+                  selectedNav: selectedNav,
+                  isCenter: isCenter,
+                  press: () {
+                    // ✅ animasi Rive hanya untuk non-custom
+                    if (!navBar.isCustom) {
+                      final rive = navBar.rive;
+                      if (rive != null && rive.status != null) {
+                        RiveUtils.changeSMIBoolState(rive.status!);
+                      }
+                    }
 
-                // highlight hanya untuk tab selain tombol "+"
-                if (index != 2) {
-                  setState(() => selectedNav = navBar);
-                }
+                    // ✅ highlight hanya non "+"
+                    if (!isCenter) {
+                      setState(() => selectedNav = navBar);
+                    }
 
-                // ✅ serahkan aksi ke parent
-                widget.onIndexChanged(index);
-              },
-              riveOnInit: (artboard) {
-                navBar.rive.status = RiveUtils.getRiveInput(
-                  artboard,
-                  stateMachineName: navBar.rive.stateMachineName,
-                );
-              },
-            );
-          }),
+                    widget.onIndexChanged(index);
+                  },
+                  riveOnInit: (artboard) {
+                    if (navBar.isCustom) return;
+
+                    final rive = navBar.rive!;
+                    rive.status = RiveUtils.getRiveInput(
+                      artboard,
+                      stateMachineName: rive.stateMachineName,
+                    );
+                  },
+                ),
+              );
+            }),
+          ),
         ),
       ),
     );

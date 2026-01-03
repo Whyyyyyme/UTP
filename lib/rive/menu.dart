@@ -1,24 +1,34 @@
 // lib/rive/menu.dart
+import 'package:flutter/material.dart';
 import '../models/rive_model.dart';
 
 class Menu {
   final String title;
-  final RiveModel rive;
 
-  Menu({required this.title, required this.rive});
+  /// kalau item normal: rive != null
+  final RiveModel? rive;
+
+  /// kalau item custom "+" : isCustom = true dan pakai icon
+  final bool isCustom;
+  final IconData? icon;
+
+  const Menu({
+    required this.title,
+    this.rive,
+    this.isCustom = false,
+    this.icon,
+  });
 }
 
-/// List item bottom navbar untuk proyek UTP
-///
-/// Urutan index disesuaikan dengan halaman:
-/// 0: Home, 1: Search, 2: Jual, 3: Inbox, 4: Profile
-List<Menu> utpBottomNavItems = [
+/// Urutan index:
+/// 0: Home, 1: Search, 2: Jual(+), 3: Inbox, 4: Profile
+final List<Menu> utpBottomNavItems = [
   Menu(
     title: "Home",
     rive: RiveModel(
       src: "assets/RiveAssets/icons.riv",
       artboard: "HOME",
-      stateMachineName: "HOME_interactivity",
+      stateMachineName: "HOME_interactivity", // ✅ PENTING: huruf kecil
     ),
   ),
   Menu(
@@ -29,20 +39,16 @@ List<Menu> utpBottomNavItems = [
       stateMachineName: "SEARCH_Interactivity",
     ),
   ),
-  Menu(
-    title: "Jual",
-    rive: RiveModel(
-      src: "assets/RiveAssets/icons.riv",
-      artboard: "TIMER", // bebas: pakai icon TIMER buat Jual
-      stateMachineName: "TIMER_Interactivity",
-    ),
-  ),
+
+  // ✅ Tombol tengah: TANPA RIVE, icon putih
+  Menu(title: "Jual", isCustom: true, icon: Icons.add),
+
   Menu(
     title: "Inbox",
     rive: RiveModel(
       src: "assets/RiveAssets/icons.riv",
-      artboard: "BELL",
-      stateMachineName: "BELL_Interactivity",
+      artboard: "CHAT",
+      stateMachineName: "CHAT_Interactivity",
     ),
   ),
   Menu(
