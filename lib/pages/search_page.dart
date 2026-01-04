@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-// Import MainNavController jika dibutuhkan untuk navigasi balik
-// import 'package:prelovedly/view_model/main_nav_controller.dart'; 
+import 'package:prelovedly/view_model/main_nav_controller.dart';
+import 'package:prelovedly/view_model/session_controller.dart';
+import 'package:prelovedly/view_model/like_controller.dart';
+import 'package:prelovedly/routes/app_routes.dart';
+import 'package:prelovedly/widgets/homepage_widget.dart'; // Pastikan HotItemCard ada di sini
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -16,33 +19,9 @@ class _SearchPageState extends State<SearchPage> {
   String selectedBrand = "";
   final TextEditingController _searchController = TextEditingController();
 
-  // ===== RUANG AMAN UNTUK BURGER (Safe Area untuk UI Custom) =====
-  static const double _burgerLeft = 16;
-  static const double _burgerSize = 44;
-  static const double _burgerGap = 12;
-  static const double _safeLeft = _burgerLeft + _burgerSize + _burgerGap; // = 72
+  static const double _safeLeft = 72;
 
-  @override
-  void initState() {
-    super.initState();
-    final args = Get.arguments as Map<String, dynamic>?;
-    if (args != null && args['query'] != null) {
-      setState(() {
-        selectedBrand = args['query'];
-        _searchController.text = args['query'];
-        searchQuery = args['query'].toString().toLowerCase();
-      });
-    }
-  }
-
-  void _onSearchSubmit() {
-    setState(() {
-      searchQuery = _searchController.text.toLowerCase();
-      selectedBrand = ""; // Reset brand filter saat mencari manual
-    });
-    FocusScope.of(context).unfocus();
-  }
-
+  // Fungsi pemformat Rupiah
   String rp(dynamic value) {
     final v = value is int ? value : int.tryParse('$value') ?? 0;
     final s = v.toString();
@@ -55,23 +34,35 @@ class _SearchPageState extends State<SearchPage> {
     return "Rp $buf";
   }
 
+  void _onSearchSubmit() {
+    setState(() {
+      searchQuery = _searchController.text.toLowerCase();
+      selectedBrand = "";
+    });
+    FocusScope.of(context).unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Inisialisasi Controller agar tidak error saat dipanggil di body
+    final likeC = Get.find<LikeController>();
+    final session = SessionController.to;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: NestedScrollView(
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
             return [
-              // 1. APP BAR: Search Bar (Tetap di atas & Animasi Hero)
               SliverAppBar(
                 pinned: true,
                 elevation: 0,
                 backgroundColor: Colors.white,
                 automaticallyImplyLeading: false,
                 titleSpacing: 0,
+                actions: [const SizedBox(width: 16)], 
                 title: Padding(
-                  padding: const EdgeInsets.only(left: _safeLeft, right: 12),
+                  padding: const EdgeInsets.only(left: _safeLeft, right: 0), 
                   child: Hero(
                     tag: 'search_bar_anim',
                     child: Material(
@@ -81,90 +72,71 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                 ),
               ),
-
-              // 2. BRANDS SECTION: (Floating & Snap - Hilang saat scroll bawah)
               SliverAppBar(
                 floating: true,
                 snap: true,
                 pinned: false,
                 elevation: 0,
                 backgroundColor: Colors.white,
-                automaticallyImplyLeading: false,
-                toolbarHeight: 90, // Menyesuaikan tinggi "Brands for you"
+                toolbarHeight: 90,
                 flexibleSpace: FlexibleSpaceBar(
                   background: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Padding(
                         padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-                        child: Text(
-                          "Brands for you",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
+                        child: Text("Brands for you", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
                       _buildBrandList(),
                     ],
                   ),
                 ),
               ),
-              
-              // Divider Statis di bawah brand (opsional)
-              const SliverToBoxAdapter(child: Divider(height: 1)),
             ];
           },
-          // 3. BODY: Grid Produk
-          body: _buildProductGrid(),
+          // Masukkan controller ke dalam fungsi grid
+          body: _buildProductGrid(likeC, session),
         ),
       ),
     );
   }
 
-  // WIDGET HELPER: Search Bar
-Widget _buildSearchBar() {
-  return Container(
-    height: 42,
-    padding: const EdgeInsets.symmetric(horizontal: 12),
-    decoration: BoxDecoration(
-      color: Colors.grey.shade200, 
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: Colors.black, width: 1.2),
-    ),
-    child: TextField(
-      controller: _searchController,
-      autofocus: true,
-      textAlignVertical: TextAlignVertical.center,
-      style: const TextStyle(fontSize: 14, color: Colors.black),
-      onSubmitted: (value) => _onSearchSubmit(),
-      decoration: InputDecoration(
-        hintText: 'Cari items, brand, atau kategori',
-        hintStyle: const TextStyle(color: Colors.black54, fontSize: 14),
-        border: InputBorder.none,
-        isDense: true, 
-        prefixIcon: const Icon(
-          Icons.search_outlined, 
-          color: Colors.black, 
-          size: 20
-        ),
-        prefixIconConstraints: const BoxConstraints(
-          minWidth: 30,
-          maxHeight: 42, 
-        ),
-        // ✅ Gabungkan pengaturan: vertical untuk tengah, horizontal diset 0
-        contentPadding: const EdgeInsets.symmetric(vertical: 14), 
+  Widget _buildSearchBar() {
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black, width: 1.2),
       ),
-    ),
-  );
-}
+      child: TextField(
+        controller: _searchController,
+        autofocus: true,
+        textAlignVertical: TextAlignVertical.center,
+        style: const TextStyle(fontSize: 14),
+        onSubmitted: (value) => _onSearchSubmit(),
+        decoration: InputDecoration(
+          hintText: 'Cari items...',
+          prefixIcon: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+            onPressed: () => Get.find<MainNavController>().changeTab(0),
+          ),
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 11),
+        ),
+      ),
+    );
+  }
 
-  // WIDGET HELPER: Brand List
   Widget _buildBrandList() {
+    final List<String> brands = ['Puma', 'Nike', 'Adidas', 'New Balance', 'Converse'];
     return SizedBox(
       height: 45,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: ['Puma', 'Nike', 'Adidas', 'New Balance', 'Converse']
-            .map((brand) {
+        children: brands.map((brand) {
           bool isSelected = selectedBrand == brand;
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -179,9 +151,7 @@ Widget _buildSearchBar() {
                 });
               },
               selectedColor: Colors.black,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : Colors.black,
-              ),
+              labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
           );
@@ -190,8 +160,7 @@ Widget _buildSearchBar() {
     );
   }
 
-  // WIDGET HELPER: Product Grid
-  Widget _buildProductGrid() {
+  Widget _buildProductGrid(LikeController likeC, SessionController session) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('products').snapshots(),
       builder: (context, snapshot) {
@@ -203,82 +172,60 @@ Widget _buildSearchBar() {
           return const Center(child: Text("Belum ada barang di database."));
         }
 
-        var filteredDocs = snapshot.data!.docs.where((doc) {
-          final data = doc.data() as Map;
+        final docs = snapshot.data!.docs;
+        var filteredDocs = docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
           final status = (data['status'] ?? '').toString().toLowerCase();
-          final isDraft = (data['is_draft'] == true) || status == 'draft';
-          final isSold = (data['is_sold'] == true) || status == 'sold' || status == 'terjual';
-
-          if (isDraft || isSold) return false;
+          if (status == 'draft' || status == 'sold' || status == 'terjual') return false;
 
           final title = (data['title'] ?? "").toString().toLowerCase();
           final brand = (data['brand'] ?? "").toString().toLowerCase();
-          final category = (data['category_name'] ?? "").toString().toLowerCase();
-
-          if (selectedBrand.isNotEmpty) {
-            final filter = selectedBrand.toLowerCase();
-            return brand == filter || category.contains(filter);
-          }
-
+          
+          if (selectedBrand.isNotEmpty) return brand == selectedBrand.toLowerCase();
           return title.contains(searchQuery) || brand.contains(searchQuery);
         }).toList();
 
-        if (filteredDocs.isEmpty) {
-          return const Center(child: Text("Barang tidak ditemukan."));
-        }
-
-        return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 30), 
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.68,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: filteredDocs.length,
-          itemBuilder: (context, index) {
-            final data = filteredDocs[index].data() as Map<String, dynamic>;
-            final docId = filteredDocs[index].id;
-            return _buildProductItem(data, docId);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildProductItem(Map<String, dynamic> data, String id) {
-    String productTitle = data['title'] ?? data['brand'] ?? "No Title";
-    String price = data['price']?.toString() ?? "0";
-    String img = (data['image_urls'] != null && (data['image_urls'] as List).isNotEmpty)
-        ? data['image_urls'][0]
-        : "";
-
-    return GestureDetector(
-      onTap: () => Get.toNamed('/product-detail', arguments: {"id": id, "seller_id": data['seller_id']}),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: img.isNotEmpty
-                    ? Image.network(img, fit: BoxFit.cover, width: double.infinity,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image))
-                    : const Center(child: Icon(Icons.image, color: Colors.grey)),
-              ),
+        return Obx(() {
+          final viewerId = session.viewerId.value;
+          return GridView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+            itemCount: filteredDocs.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: 0.76,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(productTitle, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(rp(price), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700)),
-          Text(data['condition'] ?? "Kondisi Baik", style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        ],
-      ),
+            itemBuilder: (context, index) {
+              final doc = filteredDocs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              
+              return StreamBuilder<bool>(
+                stream: viewerId.isEmpty 
+                    ? Stream.value(false) 
+                    : likeC.isLikedStream(viewerId: viewerId, productId: doc.id),
+                builder: (context, likeSnap) {
+                  return HotItemCard(
+                    id: doc.id,
+                    data: data,
+                    isLiked: likeSnap.data ?? false,
+                    onTap: () => Get.toNamed(Routes.productDetail, arguments: {
+                      "id": doc.id,
+                      "seller_id": data['seller_id'],
+                    }),
+                    onLike: () => likeC.toggleLike(
+                      viewerId: viewerId,
+                      productId: doc.id,
+                      sellerId: data['seller_id'],
+                      currentlyLiked: likeSnap.data ?? false,
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        });
+      },
     );
   }
 }
