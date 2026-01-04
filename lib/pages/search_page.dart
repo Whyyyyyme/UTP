@@ -14,6 +14,13 @@ class _SearchPageState extends State<SearchPage> {
   String selectedBrand = "";
   final TextEditingController _searchController = TextEditingController();
 
+  // ===== ruang aman untuk burger (posisi & ukuran MenuBtnRive di EntryPoint) =====
+  static const double _burgerLeft = 16;
+  static const double _burgerSize = 44;
+  static const double _burgerGap = 12;
+  static const double _safeLeft =
+      _burgerLeft + _burgerSize + _burgerGap; // = 72
+
   @override
   void initState() {
     super.initState();
@@ -22,19 +29,17 @@ class _SearchPageState extends State<SearchPage> {
       setState(() {
         selectedBrand = args['query'];
         searchQuery = "";
-        _searchController.text =
-            args['query']; // Set text di controller jika ada argumen
+        _searchController.text = args['query'];
       });
     }
   }
 
-  // ✅ Fungsi eksekusi pencarian
   void _onSearchSubmit() {
     setState(() {
       searchQuery = _searchController.text.toLowerCase();
-      selectedBrand = ""; // Reset brand filter saat mencari manual
+      selectedBrand = "";
     });
-    FocusScope.of(context).unfocus(); // Menutup keyboard setelah search
+    FocusScope.of(context).unfocus();
   }
 
   String rp(dynamic value) {
@@ -53,49 +58,55 @@ class _SearchPageState extends State<SearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.black, width: 1.2),
-          ),
-          child: TextField(
-            controller: _searchController,
-            textAlignVertical: TextAlignVertical.center,
-            style: const TextStyle(fontSize: 14),
-            // ✅ Fungsi Enter pada Keyboard
-            onSubmitted: (value) => _onSearchSubmit(),
-            decoration: InputDecoration(
-              hintText: 'Cari items, brand, atau kategori',
-              hintStyle: const TextStyle(color: Colors.black54, fontSize: 14),
-              border: InputBorder.none,
-              isCollapsed: true,
-              prefixIcon: GestureDetector(
-                // ✅ Fungsi Klik pada Ikon Search
-                onTap: _onSearchSubmit,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 9),
-                  child: const Icon(
-                    Icons.search_outlined,
-                    color: Colors.black,
-                    size: 20,
+        titleSpacing: 0,
+
+        // ✅ Searchbar digeser agar tidak tabrakan burger
+        title: Padding(
+          padding: const EdgeInsets.only(left: _safeLeft, right: 12),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.black, width: 1.2),
+            ),
+            child: TextField(
+              controller: _searchController,
+              textAlignVertical: TextAlignVertical.center,
+              style: const TextStyle(fontSize: 14),
+              onSubmitted: (value) => _onSearchSubmit(),
+              decoration: InputDecoration(
+                hintText: 'Cari items, brand, atau kategori',
+                hintStyle: const TextStyle(color: Colors.black54, fontSize: 14),
+                border: InputBorder.none,
+                isCollapsed: true,
+                prefixIcon: GestureDetector(
+                  onTap: _onSearchSubmit,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 9),
+                    child: const Icon(
+                      Icons.search_outlined,
+                      color: Colors.black,
+                      size: 20,
+                    ),
                   ),
                 ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 32,
+                  maxHeight: 25,
+                ),
+                contentPadding: const EdgeInsets.only(top: 13),
               ),
-              prefixIconConstraints: const BoxConstraints(
-                minWidth: 32,
-                maxHeight: 25, // Sedikit ditinggikan agar area klik icon nyaman
-              ),
-              contentPadding: const EdgeInsets.only(top: 13),
             ),
           ),
         ),
       ),
+
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -156,7 +167,6 @@ class _SearchPageState extends State<SearchPage> {
                 var filteredDocs = snapshot.data!.docs.where((doc) {
                   final data = doc.data() as Map;
 
-                  // ✅ filter status dulu
                   final status = (data['status'] ?? '')
                       .toString()
                       .toLowerCase();

@@ -34,6 +34,7 @@ flutter:
 
   assets:
     - assets/RiveAssets/icons.riv
+    - assets/RiveAssets/menu_button.riv
     - assets/icons/heart_message.png
     - assets/images/
     - assets/icons/

@@ -123,6 +123,9 @@ import 'package:prelovedly/pages/admin_pages/admin_product_detail_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_reports_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_settings_page.dart';
 
+// entry point
+import 'package:prelovedly/pages/entry_point_utp.dart';
+
 class AppPages {
   AppPages._();
 
@@ -483,11 +486,12 @@ class AppPages {
     // ======================
     GetPage(
       name: Routes.home,
-      page: () => const HomePage(),
+      page: () => const EntryPointUTP(),
       binding: BindingsBuilder(() {
         ensureGlobals();
       }),
     ),
+
 
     GetPage(
       name: Routes.profile,

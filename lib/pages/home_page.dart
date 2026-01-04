@@ -19,7 +19,7 @@ class HomePage extends StatelessWidget {
 
     final pages = <Widget>[
       const HomeContentPage(),
-      SearchPage(),
+      const SearchPage(),
       const SizedBox.shrink(),
       InboxPage(),
       ProfilePage(),
@@ -51,6 +51,13 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final MainNavController nav;
   const _HomeAppBar({required this.nav});
 
+  // ===== ruang aman untuk burger (posisi & ukuran MenuBtnRive di EntryPoint) =====
+  static const double _burgerLeft = 16;
+  static const double _burgerSize = 44;
+  static const double _burgerGap = 12;
+  static const double _safeLeft =
+      _burgerLeft + _burgerSize + _burgerGap; // = 72
+
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
@@ -61,8 +68,10 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       elevation: 0,
       titleSpacing: 0,
+
+      // ✅ Searchbar digeser agar tidak tabrakan burger
       title: Padding(
-        padding: const EdgeInsets.only(left: 12),
+        padding: const EdgeInsets.only(left: _safeLeft),
         child: Hero(
           tag: 'search_bar_anim',
           child: Material(
@@ -83,6 +92,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
                     child: Text(
                       'Cari items, brand, atau kategori',
                       style: TextStyle(color: Colors.black54, fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -91,6 +101,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
       ),
+
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 12),
