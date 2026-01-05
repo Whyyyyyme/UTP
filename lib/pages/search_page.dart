@@ -7,7 +7,7 @@ import 'package:prelovedly/view_model/session_controller.dart';
 import 'package:prelovedly/view_model/like_controller.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/widgets/homepage_widget.dart';
-import 'package:prelovedly/widgets/profile/likes_tab.dart'; 
+import 'package:prelovedly/widgets/profile/likes_tab.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -19,7 +19,7 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   String searchQuery = "";
   String selectedBrand = "";
-  bool isShowingLikesTab = false; 
+  bool isShowingLikesTab = false;
   final TextEditingController _searchController = TextEditingController();
 
   static const double _safeLeft = 72;
@@ -29,7 +29,7 @@ class _SearchPageState extends State<SearchPage> {
       searchQuery = value.toLowerCase();
       _searchController.text = value;
       selectedBrand = "";
-      isShowingLikesTab = false; 
+      isShowingLikesTab = false;
     });
   }
 
@@ -68,9 +68,9 @@ class _SearchPageState extends State<SearchPage> {
               ),
             ];
           },
-          body: isShowingLikesTab 
-            ? _buildLikesTabContainer(session.viewerId.value, likeC) 
-            : _buildMainContent(likeC, session),
+          body: isShowingLikesTab
+              ? _buildLikesTabContainer(session.viewerId.value, likeC)
+              : _buildMainContent(likeC, session),
         ),
       ),
     );
@@ -83,10 +83,18 @@ class _SearchPageState extends State<SearchPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 16),
-          _buildSimpleTile(Icons.auto_awesome_outlined, "Explore item terbaru", onTap: () => _updateSearch("")),
-          _buildSimpleTile(Icons.favorite_border, "Lihat item terpopuler", onTap: () {
-            setState(() => isShowingLikesTab = true);
-          }),
+          _buildSimpleTile(
+            Icons.auto_awesome_outlined,
+            "Explore item terbaru",
+            onTap: () => _updateSearch(""),
+          ),
+          _buildSimpleTile(
+            Icons.favorite_border,
+            "Lihat item favoritmu",
+            onTap: () {
+              setState(() => isShowingLikesTab = true);
+            },
+          ),
 
           const SizedBox(height: 24),
           _buildSectionTitle("Trending"),
@@ -103,7 +111,7 @@ class _SearchPageState extends State<SearchPage> {
           const SizedBox(height: 24),
           if (searchQuery.isNotEmpty || selectedBrand.isNotEmpty)
             _buildSectionTitle("Hasil Pencarian"),
-          
+
           _buildProductGrid(likeC, session),
         ],
       ),
@@ -115,10 +123,15 @@ class _SearchPageState extends State<SearchPage> {
       children: [
         ListTile(
           leading: const Icon(Icons.arrow_back),
-          title: const Text("Item Terpopuler (Liked)", style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text(
+            "Item Terpopuler (Liked)",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           onTap: () => setState(() => isShowingLikesTab = false),
         ),
-        Expanded(child: LikesTab(viewerId: viewerId, likeC: likeC)),
+        Expanded(
+          child: LikesTab(viewerId: viewerId, likeC: likeC),
+        ),
       ],
     );
   }
@@ -152,7 +165,8 @@ class _SearchPageState extends State<SearchPage> {
       stream: FirebaseFirestore.instance.collection('products').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) return const Text("Error loading brands");
-        if (snapshot.connectionState == ConnectionState.waiting) return const SizedBox();
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const SizedBox();
 
         final docs = snapshot.data?.docs ?? [];
         final Set<String> brandSet = {};
@@ -176,8 +190,13 @@ class _SearchPageState extends State<SearchPage> {
               return ActionChip(
                 key: ValueKey('brand_$brandName'),
                 label: Text(brandName),
-                labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black, fontSize: 12),
-                backgroundColor: isSelected ? Colors.black : Colors.grey.shade200,
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : Colors.black,
+                  fontSize: 12,
+                ),
+                backgroundColor: isSelected
+                    ? Colors.black
+                    : Colors.grey.shade200,
                 onPressed: () {
                   setState(() {
                     selectedBrand = isSelected ? "" : brandName;
@@ -200,56 +219,70 @@ class _SearchPageState extends State<SearchPage> {
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
-        children: trending.map((t) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: ActionChip(
-            label: Text("$t ↗"),
-            onPressed: () => _updateSearch(t),
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: Colors.black12),
-            ),
-          ),
-        )).toList(),
+        children: trending
+            .map(
+              (t) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ActionChip(
+                  label: Text("$t ↗"),
+                  onPressed: () => _updateSearch(t),
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Colors.black12),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
 
-  Widget _buildCategoryGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      mainAxisSpacing: 12, crossAxisSpacing: 12,
-      childAspectRatio: 1.8,
-      children: [
-        _categoryCard("Wanita", "https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=200"),
-        _categoryCard("Hiburan", "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=200"),
-        _categoryCard("Anak-anak", "https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=200"),
-        _categoryCard("Pria", "https://images.unsplash.com/photo-1490367532201-b9bc1dc483f6?q=80&w=200"),
-      ],
-    );
-  }
+ Widget _buildCategoryGrid() {
+  return GridView.count(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    crossAxisCount: 2,
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    mainAxisSpacing: 12,
+    crossAxisSpacing: 12,
+    childAspectRatio: 1.8,
+    children: [
+      _categoryCard("Wanita", "https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=200"),
+      _categoryCard("Pria", "https://images.unsplash.com/photo-1490367532201-b9bc1dc483f6?q=80&w=200"),
+      // ✅ Diubah menjadi "Anak" saja
+      _categoryCard("Anak", "https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=200"),
+      // ✅ Menampilkan label "Pria & Wanita" tapi input pencariannya berbeda
+      _categoryCard("Pria & Wanita", "https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?q=80&w=200"),
+    ],
+  );
+}
 
-  Widget _categoryCard(String title, String imageUrl) {
-    return InkWell(
-      onTap: () => _updateSearch(title),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          image: DecorationImage(
-            image: NetworkImage(imageUrl),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.3), BlendMode.darken),
-          ),
+Widget _categoryCard(String title, String imageUrl) {
+  return InkWell(
+    onTap: () {
+      // ✅ Logika khusus: Jika pilih Pria & Wanita, kita kirim keyword gabungan
+      if (title == "Pria & Wanita") {
+        _updateSearch("Pria Wanita"); 
+      } else {
+        _updateSearch(title);
+      }
+    },
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        image: DecorationImage(
+          image: NetworkImage(imageUrl),
+          fit: BoxFit.cover,
+          colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.3), BlendMode.darken),
         ),
-        alignment: Alignment.center,
-        child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-    );
-  }
+      alignment: Alignment.center,
+      child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+    ),
+  );
+}
 
   Widget _buildSimpleTile(IconData icon, String text, {VoidCallback? onTap}) {
     return InkWell(
@@ -273,60 +306,82 @@ class _SearchPageState extends State<SearchPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           if (showArrow) const Icon(Icons.chevron_right),
         ],
       ),
     );
   }
 
-  Widget _buildProductGrid(LikeController likeC, SessionController session) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('products').snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox();
-        final docs = snapshot.data!.docs;
-        var filteredDocs = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final title = (data['title'] ?? "").toString().toLowerCase();
-          final brand = (data['brand'] ?? "").toString().toLowerCase();
-          final status = (data['status'] ?? "").toString().toLowerCase();
+  // --- LOGIKA FILTER PRODUK (Perubahan pada bagian category_id) ---
+ Widget _buildProductGrid(LikeController likeC, SessionController session) {
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance.collection('products').snapshots(),
+    builder: (context, snapshot) {
+      if (!snapshot.hasData) return const SizedBox();
+      final docs = snapshot.data!.docs;
+      
+      var filteredDocs = docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final title = (data['title'] ?? "").toString().toLowerCase();
+        final brand = (data['brand'] ?? "").toString().toLowerCase();
+        final status = (data['status'] ?? "").toString().toLowerCase();
+        final categoryId = (data['category_id'] ?? "").toString().toLowerCase();
 
-          if (status == 'sold' || status == 'draft') return false;
-          if (selectedBrand.isNotEmpty) return brand == selectedBrand.toLowerCase();
-          if (searchQuery.isNotEmpty) return title.contains(searchQuery) || brand.contains(searchQuery);
-          return true; 
-        }).take(10).toList();
+        if (status == 'sold' || status == 'draft') return false;
 
-        return Obx(() {
-          final vId = session.viewerId.value;
-          return GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: filteredDocs.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.76,
-            ),
-            itemBuilder: (context, index) {
-              final doc = filteredDocs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              return StreamBuilder<bool>(
-                stream: vId.isEmpty ? Stream.value(false) : likeC.isLikedStream(viewerId: vId, productId: doc.id),
-                builder: (context, likeSnap) {
-                  return HotItemCard(
-                    id: doc.id,
-                    data: data,
-                    isLiked: likeSnap.data ?? false,
-                    onTap: () => Get.toNamed(Routes.productDetail, arguments: {"id": doc.id, "seller_id": data['seller_id'], "viewer_id": vId}),
-                    onLike: () => likeC.toggleLike(viewerId: vId, productId: doc.id, sellerId: data['seller_id'], currentlyLiked: likeSnap.data ?? false),
-                  );
-                },
-              );
-            },
-          );
-        });
-      },
-    );
-  }
+        if (selectedBrand.isNotEmpty) return brand == selectedBrand.toLowerCase();
+
+        if (searchQuery.isNotEmpty) {
+          // ✅ Logika "OR": Jika cari "Pria Wanita", maka produk dengan category_id 
+          // 'pria' AKAN muncul, dan 'wanita' juga AKAN muncul.
+          bool matchCategory = false;
+          List<String> keywords = searchQuery.split(" "); // memecah "pria wanita" jadi ["pria", "wanita"]
+          
+          for (var word in keywords) {
+            if (categoryId.contains(word) || title.contains(word) || brand.contains(word)) {
+              matchCategory = true;
+              break; 
+            }
+          }
+          return matchCategory;
+        }
+        
+        return true; 
+      }).take(10).toList();
+
+      return Obx(() {
+        final vId = session.viewerId.value;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: filteredDocs.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.76,
+          ),
+          itemBuilder: (context, index) {
+            final doc = filteredDocs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            return StreamBuilder<bool>(
+              stream: vId.isEmpty ? Stream.value(false) : likeC.isLikedStream(viewerId: vId, productId: doc.id),
+              builder: (context, likeSnap) {
+                return HotItemCard(
+                  id: doc.id,
+                  data: data,
+                  isLiked: likeSnap.data ?? false,
+                  onTap: () => Get.toNamed(Routes.productDetail, arguments: {"id": doc.id, "seller_id": data['seller_id'], "viewer_id": vId}),
+                  onLike: () => likeC.toggleLike(viewerId: vId, productId: doc.id, sellerId: data['seller_id'], currentlyLiked: likeSnap.data ?? false),
+                );
+              },
+            );
+          },
+        );
+      });
+    },
+  );
+}
 }
