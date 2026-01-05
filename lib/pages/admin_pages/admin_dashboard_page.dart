@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:prelovedly/view_model/admin_dashboard_controller.dart';
+
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
 
@@ -11,6 +13,9 @@ class AdminDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Controller Ringkasan (ambil dari Firestore)
+    final dashC = Get.put(AdminDashboardController());
+
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
@@ -40,7 +45,8 @@ class AdminDashboardPage extends StatelessWidget {
                         constraints: const BoxConstraints(maxWidth: 1200),
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                          child: const _DashboardContent(
+                          child: _DashboardContent(
+                            dashC: dashC,
                             statsColumns: 4,
                             menuColumns: 3,
                             headerCompact: false,
@@ -59,7 +65,8 @@ class AdminDashboardPage extends StatelessWidget {
                   constraints: const BoxConstraints(maxWidth: 900),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                    child: const _DashboardContent(
+                    child: _DashboardContent(
+                      dashC: dashC,
                       statsColumns: 3,
                       menuColumns: 2,
                       headerCompact: false,
@@ -69,9 +76,10 @@ class AdminDashboardPage extends StatelessWidget {
               );
             }
 
-            return const Padding(
-              padding: EdgeInsets.fromLTRB(12, 10, 12, 12),
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: _DashboardContent(
+                dashC: dashC,
                 statsColumns: 2,
                 menuColumns: 2,
                 headerCompact: true,
@@ -88,11 +96,13 @@ class AdminDashboardPage extends StatelessWidget {
 /// MAIN CONTENT
 /// ==============================
 class _DashboardContent extends StatelessWidget {
+  final AdminDashboardController dashC;
   final int statsColumns;
   final int menuColumns;
   final bool headerCompact;
 
   const _DashboardContent({
+    required this.dashC,
     required this.statsColumns,
     required this.menuColumns,
     required this.headerCompact,
@@ -100,32 +110,8 @@ class _DashboardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const stats = <Widget>[
-      _StatCard(
-        icon: Icons.group,
-        label: 'User',
-        value: '12',
-        tint: Color(0xFF3B82F6),
-      ),
-      _StatCard(
-        icon: Icons.shopping_bag,
-        label: 'Produk',
-        value: '13',
-        tint: Color(0xFF22C55E),
-      ),
-      _StatCard(
-        icon: Icons.receipt_long,
-        label: 'Order',
-        value: '-',
-        tint: Color(0xFFF59E0B),
-      ),
-      _StatCard(
-        icon: Icons.handshake,
-        label: 'Nego',
-        value: '-',
-        tint: Color(0xFF8B5CF6),
-      ),
-    ];
+    // Tinggi item menu berbeda per ukuran (biar aman)
+    final double menuExtent = menuColumns >= 3 ? 110 : 126;
 
     final menus = <Widget>[
       _MenuCard(
@@ -158,32 +144,106 @@ class _DashboardContent extends StatelessWidget {
       ),
     ];
 
-    // Tinggi item menu berbeda per ukuran (biar aman)
-    final double menuExtent = menuColumns >= 3 ? 110 : 126;
-
     return Column(
       children: [
         _Header(compact: headerCompact),
         const SizedBox(height: 16),
-        const _SectionTitle(
-          title: 'Ringkasan',
-          subtitle: 'Statistik aplikasi secara cepat',
+
+        Row(
+          children: [
+            const Expanded(
+              child: _SectionTitle(
+                title: 'Ringkasan',
+                subtitle: 'Statistik aplikasi secara cepat',
+              ),
+            ),
+            Obx(() {
+              final loading = dashC.isLoading.value;
+              return IconButton(
+                tooltip: 'Refresh',
+                onPressed: loading ? null : dashC.refreshAll,
+                icon: loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh_rounded),
+              );
+            }),
+          ],
         ),
+
         const SizedBox(height: 10),
 
-        // ✅ STATS: fixed height (anti overflow)
-        GridView.builder(
-          itemCount: stats.length,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: statsColumns,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            mainAxisExtent: 86,
-          ),
-          itemBuilder: (context, i) => stats[i],
-        ),
+        // ✅ STATS: from controller (paid & received)
+        Obx(() {
+          final err = dashC.error.value;
+
+          final stats = <Widget>[
+            _StatCard(
+              icon: Icons.group,
+              label: 'User',
+              value: err != null ? '-' : '${dashC.userCount.value}',
+              tint: const Color(0xFF3B82F6),
+            ),
+            _StatCard(
+              icon: Icons.shopping_bag,
+              label: 'Produk',
+              value: err != null ? '-' : '${dashC.productCount.value}',
+              tint: const Color(0xFF22C55E),
+            ),
+            _StatCard(
+              icon: Icons.receipt_long,
+              label: 'Order (paid)',
+              value: err != null ? '-' : '${dashC.orderPaidCount.value}',
+              tint: const Color(0xFFF59E0B),
+            ),
+            _StatCard(
+              icon: Icons.verified,
+              label: 'Order (received)',
+              value: err != null ? '-' : '${dashC.orderReceivedCount.value}',
+              tint: const Color(0xFF8B5CF6),
+            ),
+          ];
+
+          return Column(
+            children: [
+              if (err != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1F2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: Text(
+                    'Gagal memuat ringkasan: $err',
+                    style: const TextStyle(
+                      color: Color(0xFF991B1B),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+
+              GridView.builder(
+                itemCount: stats.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: statsColumns,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  mainAxisExtent: 86,
+                ),
+                itemBuilder: (context, i) => stats[i],
+              ),
+            ],
+          );
+        }),
 
         const SizedBox(height: 18),
         const _SectionTitle(
@@ -296,7 +356,6 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-
           IconButton(
             onPressed: _logout,
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
