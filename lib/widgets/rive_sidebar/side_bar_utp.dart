@@ -78,25 +78,29 @@ class _SideBarUTPState extends State<SideBarUTP> {
             },
           ),
           SideMenuTile(
-            title: "Inbox",
-            icon: Icons.chat_bubble_outline,
+            title: "Wallet",
+            icon: Icons.account_balance_wallet_outlined,
             isActive: _activeIndex == 2,
             onTap: () {
               setState(() => _activeIndex = 2);
-              _goToTab(3);
+              _goToRoute(Routes.wallet); // ✅ arahkan ke Wallet
             },
           ),
+
           SideMenuTile(
             title: "Profile",
             icon: Icons.person_outline,
             isActive: _activeIndex == 3,
             onTap: () {
               setState(() => _activeIndex = 3);
-              _goToTab(4);
+              _goToRoute(
+                Routes.shopProfile,
+              ); // ✅ buka page profil toko (ShopProfileScreen)
             },
           ),
+
           SideMenuTile(
-            title: "Help / Settings",
+            title: "Settings / Logout",
             icon: Icons.help_outline,
             isActive: _activeIndex == 4,
             onTap: () {

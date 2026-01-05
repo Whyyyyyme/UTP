@@ -130,7 +130,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildBrandList() {
-    final List<String> brands = ['Puma', 'Nike', 'Adidas', 'New Balance', 'Converse'];
+    final List<String> brands = ['Puma', 'Nike', 'Adidas', 'New Balance', 'Zara', 'H&M', 'Uniqlo', 'Levis', 'Gucci', 'Prada'];
     return SizedBox(
       height: 45,
       child: ListView(
