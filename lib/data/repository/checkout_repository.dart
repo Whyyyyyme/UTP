@@ -1,5 +1,7 @@
+// lib/data/repository/checkout_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../models/checkout_item_model.dart';
 import '../services/checkout_service.dart';
 
@@ -32,7 +34,8 @@ class CheckoutRepository {
   }
 
   Future<void> createOrder({
-    required String buyerId,
+    required String
+    buyerId, // NOTE: kamu masih pass ini, tapi yg dipakai buyerUid dari auth
     required List<CheckoutItemModel> items,
     required Map<String, dynamic> address,
     required Map<String, dynamic> shipping,
@@ -59,6 +62,7 @@ class CheckoutRepository {
         .where((e) => e.isNotEmpty)
         .toSet()
         .toList();
+
     if (sellerUids.isEmpty) {
       throw Exception(
         'seller_uid kosong di cart item (produk belum punya seller_uid)',
@@ -72,13 +76,16 @@ class CheckoutRepository {
       'order_id': orderRef.id,
       'buyer_id': buyerUid,
       'seller_uids': sellerUids,
-
       'seller_ids': sellerIds,
 
       'status': 'paid',
       'subtotal': subtotal,
       'shipping_fee': shippingFeeFinal,
       'total': total,
+
+      // ✅ PENTING: default untuk wallet
+      'is_withdrawn': false,
+
       'promo_discount': _toInt(shipping['promo_discount']),
       'shipping_fee_original': _toInt(shipping['fee_original']),
       'address': address,
@@ -95,8 +102,9 @@ class CheckoutRepository {
         'order_id': orderRef.id,
         'buyer_id': buyerUid,
         'product_id': it.productId,
-
         'seller_id': it.sellerId,
+
+        // NOTE: ini memang list, tapi di item kamu nyimpen seller_uids juga
         'seller_uids': sellerUids,
 
         'title': it.title,
@@ -110,12 +118,12 @@ class CheckoutRepository {
         'created_at': now,
       });
 
-      batch.update(_service.productRef(it.productId), {
+      batch.set(_service.productRef(it.productId), {
         'status': 'sold',
         'sold_to': buyerUid,
         'sold_at': now,
         'updated_at': now,
-      });
+      }, SetOptions(merge: true));
     }
 
     for (final it in items) {

@@ -1,70 +1,48 @@
+// lib/data/services/orders_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrdersService {
+  final FirebaseFirestore db;
   OrdersService({FirebaseFirestore? db})
-    : _db = db ?? FirebaseFirestore.instance;
-
-  final FirebaseFirestore _db;
+    : db = db ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> ordersRef() =>
-      _db.collection('orders');
-
-  // ========= BOUGHT =========
-  Stream<QuerySnapshot<Map<String, dynamic>>> boughtOrdersSnap(
-    String buyerAuthUid,
-  ) {
-    return ordersRef()
-        .where('buyer_id', isEqualTo: buyerAuthUid)
-        .orderBy('created_at', descending: true)
-        .snapshots();
-  }
-
-  // ========= SOLD (auth uid) =========
-  Stream<QuerySnapshot<Map<String, dynamic>>> soldOrdersSnap(
-    String sellerAuthUid,
-  ) {
-    return ordersRef()
-        .where('seller_uids', arrayContains: sellerAuthUid)
-        .orderBy('created_at', descending: true)
-        .snapshots();
-  }
+      db.collection('orders');
 
   DocumentReference<Map<String, dynamic>> orderRef(String orderId) =>
-      ordersRef().doc(orderId);
+      db.collection('orders').doc(orderId);
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> soldReceivedOrdersSnap(
-    String sellerAuthUid,
-  ) {
-    return ordersRef()
+  // buyer_id == uid
+  Query<Map<String, dynamic>> boughtOrdersSnap(String buyerAuthUid) {
+    return db
+        .collection('orders')
+        .where('buyer_id', isEqualTo: buyerAuthUid)
+        .orderBy('created_at', descending: true);
+  }
+
+  // seller_uids array contains uid
+  Query<Map<String, dynamic>> soldOrdersSnap(String sellerAuthUid) {
+    return db
+        .collection('orders')
+        .where('seller_uids', arrayContains: sellerAuthUid)
+        .orderBy('created_at', descending: true);
+  }
+
+  // ✅ RECEIVED: jangan filter is_withdrawn di query
+  Query<Map<String, dynamic>> soldReceivedOrdersSnap(String sellerAuthUid) {
+    return db
+        .collection('orders')
         .where('seller_uids', arrayContains: sellerAuthUid)
         .where('status', isEqualTo: 'received')
-        .where('is_withdrawn', isEqualTo: false)
-        .orderBy('created_at', descending: true)
-        .snapshots();
+        .orderBy('created_at', descending: true);
   }
 
-  Future<Map<String, dynamic>?> fetchFirstItem(String orderId) async {
-    final snap = await orderRef(orderId)
-        .collection('items')
-        .orderBy('created_at', descending: true)
-        .limit(1)
-        .get();
-    if (snap.docs.isEmpty) return null;
-    return snap.docs.first.data();
-  }
-
-  Future<Map<String, dynamic>?> fetchUser(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
-    return doc.data();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> soldPendingOrdersSnap(
-    String sellerAuthUid,
-  ) {
-    return ordersRef()
+  // PENDING / PAID
+  Query<Map<String, dynamic>> soldPendingOrdersSnap(String sellerAuthUid) {
+    return db
+        .collection('orders')
         .where('seller_uids', arrayContains: sellerAuthUid)
-        .where('status', isEqualTo: 'paid') // pending = belum diterima
-        .orderBy('created_at', descending: true)
-        .snapshots();
+        .where('status', isEqualTo: 'paid')
+        .orderBy('created_at', descending: true);
   }
 }

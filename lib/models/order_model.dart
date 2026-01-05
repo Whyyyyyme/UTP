@@ -1,3 +1,4 @@
+// lib/models/order_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrderModel {
@@ -10,6 +11,9 @@ class OrderModel {
   final int shippingFee;
   final int total;
 
+  // ✅ NEW
+  final bool? isWithdrawn;
+
   final Timestamp? createdAt;
   final Timestamp? updatedAt;
 
@@ -21,11 +25,22 @@ class OrderModel {
     required this.subtotal,
     required this.shippingFee,
     required this.total,
+    this.isWithdrawn,
     this.createdAt,
     this.updatedAt,
   });
 
   static int _toInt(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
+
+  static bool? _toBool(dynamic v) {
+    if (v is bool) return v;
+    if (v is String) {
+      final s = v.toLowerCase().trim();
+      if (s == 'true') return true;
+      if (s == 'false') return false;
+    }
+    return null;
+  }
 
   factory OrderModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
@@ -42,6 +57,8 @@ class OrderModel {
       subtotal: _toInt(d['subtotal']),
       shippingFee: _toInt(d['shipping_fee']),
       total: _toInt(d['total']),
+      // ✅ baca field withdraw
+      isWithdrawn: _toBool(d['is_withdrawn']),
       createdAt: d['created_at'] as Timestamp?,
       updatedAt: d['updated_at'] as Timestamp?,
     );
