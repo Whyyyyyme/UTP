@@ -21,12 +21,8 @@ class ProfilePage extends StatelessWidget {
         return const Scaffold(body: Center(child: Text('Kamu belum login')));
       }
 
-      final namaRaw = user.nama;
-      final nama = namaRaw.isNotEmpty ? namaRaw : 'User';
-
-      final usernameRaw = user.username;
-      final username = usernameRaw.isNotEmpty ? '@$usernameRaw' : '';
-
+      final nama = user.nama.isNotEmpty ? user.nama : 'User';
+      final username = user.username.isNotEmpty ? '@${user.username}' : '';
       final initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
       final fotoUrl = user.fotoProfilUrl;
       final hasPhoto = fotoUrl.isNotEmpty;
@@ -44,6 +40,7 @@ class ProfilePage extends StatelessWidget {
           children: [
             const SizedBox(height: 16),
 
+            // --- BAGIAN USER (TETAP ADA) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: InkWell(
@@ -55,10 +52,7 @@ class ProfilePage extends StatelessWidget {
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -75,48 +69,19 @@ class ProfilePage extends StatelessWidget {
                       CircleAvatar(
                         radius: 24,
                         backgroundColor: Colors.orange,
-                        backgroundImage: hasPhoto
-                            ? NetworkImage(fotoUrl)
-                            : null,
-                        child: hasPhoto
-                            ? null
-                            : Text(
-                                initial,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
+                        backgroundImage: hasPhoto ? NetworkImage(fotoUrl) : null,
+                        child: hasPhoto ? null : Text(initial, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              nama,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            Text(nama, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                             if (username.isNotEmpty)
-                              Text(
-                                username,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
+                              Text(username, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                             const SizedBox(height: 4),
-                            Text(
-                              'Lihat profil',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
+                            Text('Lihat profil', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                           ],
                         ),
                       ),
@@ -129,72 +94,83 @@ class ProfilePage extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // BANNER
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Center(
-                child: Text('Banner', style: TextStyle(color: Colors.grey)),
+            // --- BAGIAN BANNER (YANG DIUBAH) ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                height: 125,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  image: const DecorationImage(
+                    image: NetworkImage('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=500'),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Mulai jualan', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      const Text('Ubah baju tidak terpakaimu\njadi cuan', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () => Get.toNamed(Routes.sellProduct),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          minimumSize: const Size(80, 32),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Jual', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
-            // MENU FAVORIT
+            // --- MENU LAINNYA ---
             ListTile(
               leading: const Icon(Icons.favorite_border),
               title: const Text('Favorit'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // langsung buka detail profil tab Likes
-                Get.toNamed(
-                  Routes.shopProfile,
-                  arguments: {'initialTabIndex': 1, 'sellerId': myId},
-                );
-              },
+              onTap: () => Get.toNamed(Routes.shopProfile, arguments: {'initialTabIndex': 1, 'sellerId': myId}),
             ),
-
-            // WALLET
             ListTile(
               leading: Icon(Icons.wallet, color: Colors.grey[600]),
               title: const Text('Wallet'),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Obx(
-                    () => Text(
-                      rupiah(
-                        walletC.availableBalance.value,
-                      ), // dari orders received
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ),
+                  Obx(() => Text(rupiah(walletC.availableBalance.value), style: TextStyle(color: Colors.grey[600]))),
                   const SizedBox(width: 8),
                   const Icon(Icons.chevron_right, color: Colors.grey),
                 ],
               ),
-
               onTap: () => Get.toNamed(Routes.wallet),
             ),
-
-            // Pesanan
             _buildMenuTile(
               icon: Icons.message_outlined,
               title: 'Pesanan',
-              onTap: () {
-                Get.toNamed(Routes.orders);
-              },
+              onTap: () => Get.toNamed(Routes.orders),
             ),
-
-            // Settings
             _buildMenuTile(
               icon: Icons.settings_outlined,
               title: 'Settings',
-              onTap: () {
-                Get.toNamed(Routes.settings);
-              },
+              onTap: () => Get.toNamed(Routes.settings),
             ),
           ],
         ),
@@ -202,11 +178,7 @@ class ProfilePage extends StatelessWidget {
     });
   }
 
-  Widget _buildMenuTile({
-    required IconData icon,
-    required String title,
-    VoidCallback? onTap,
-  }) {
+  Widget _buildMenuTile({required IconData icon, required String title, VoidCallback? onTap}) {
     return ListTile(
       leading: Icon(icon, color: Colors.grey[600]),
       title: Text(title),
@@ -214,4 +186,7 @@ class ProfilePage extends StatelessWidget {
       onTap: onTap,
     );
   }
-}
+} 
+  
+
+

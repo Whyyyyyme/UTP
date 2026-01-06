@@ -8,6 +8,81 @@ import 'package:prelovedly/view_model/like_controller.dart';
 
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/widgets/homepage_widget.dart';
+import 'package:prelovedly/pages/help_desk_page.dart';
+class WelcomeCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String imageUrl; // Tambahkan ini
+  final VoidCallback onTap;
+
+  const WelcomeCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.imageUrl, // Tambahkan ini
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          image: DecorationImage(
+            image: NetworkImage(imageUrl), // Menampilkan gambar
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          // Overlay gradasi hitam agar teks putih mudah dibaca
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.1),
+                Colors.black.withOpacity(0.7),
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right, color: Colors.white, size: 18),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class HomeContentPage extends StatelessWidget {
   const HomeContentPage({super.key});
@@ -29,7 +104,7 @@ class HomeContentPage extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Pelajari cara pakai Preloved!',
+            'Pelajari cara pakai Prelovedly!',
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 14),
@@ -41,13 +116,17 @@ class HomeContentPage extends StatelessWidget {
               children: [
                 WelcomeCard(
                   title: 'Cara berbelanja',
-                  subtitle: 'Pelajari cara membeli di\nPreloved',
-                  onTap: () {},
+                  subtitle: 'Pelajari cara membeli di\nPrelovedly',
+                  // Tambahkan link gambar tutorial belanja
+                  imageUrl: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?q=80&w=500', 
+                  onTap: () => Get.to(() => const HelpDeskPage()),
                 ),
                 const SizedBox(width: 12),
                 WelcomeCard(
                   title: 'Mulai berjualan',
                   subtitle: 'Mulai kosongkan\npakaianmu',
+                  // Tambahkan link gambar orang merapikan baju/jualan
+                  imageUrl: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=500',
                   onTap: () => Get.toNamed(Routes.sellProduct),
                 ),
               ],
