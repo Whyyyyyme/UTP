@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ TAMBAH INI
 import 'package:prelovedly/models/order_model.dart';
 import 'package:prelovedly/routes/app_routes.dart';
 import 'package:prelovedly/view_model/wallet_orders_controller.dart';
@@ -267,6 +268,12 @@ class _TxTile extends StatelessWidget {
         ? ''
         : DateFormat('dd MMM yyyy', 'id_ID').format(date);
 
+    // ✅ INI KUNCINYA: tampilkan NET untuk seller login
+    final sellerUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final amount = sellerUid.isEmpty
+        ? order.subtotal
+        : order.netForSeller(sellerUid);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -305,7 +312,7 @@ class _TxTile extends StatelessWidget {
             ),
           ),
           Text(
-            rupiah(order.subtotal),
+            rupiah(amount), // ✅ yang tadinya order.subtotal
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
         ],

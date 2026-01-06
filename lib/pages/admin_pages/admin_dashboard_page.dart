@@ -36,7 +36,7 @@ class AdminDashboardPage extends StatelessWidget {
                       if (i == 1) Get.toNamed(Routes.adminUsers);
                       if (i == 2) Get.toNamed(Routes.adminProducts);
                       if (i == 3) Get.toNamed(Routes.adminReports);
-                      if (i == 4) Get.toNamed(Routes.adminSettings);
+                      if (i == 4) Get.toNamed(Routes.adminIncome);
                     },
                   ),
                   Expanded(
@@ -135,13 +135,15 @@ class _DashboardContent extends StatelessWidget {
         color: const Color(0xFFF59E0B),
         onTap: () => Get.toNamed(Routes.adminReports),
       ),
+      // GANTI _MenuCard yang sebelumnya "Pengaturan App" jadi ini:
       _MenuCard(
-        icon: Icons.settings_rounded,
-        title: 'Pengaturan App',
-        subtitle: 'Konfigurasi sistem',
+        icon: Icons.payments_rounded,
+        title: 'Penghasilan',
+        subtitle: 'Fee admin 3% dari transaksi',
         color: const Color(0xFF64748B),
-        onTap: () => Get.toNamed(Routes.adminSettings),
+        onTap: () => Get.toNamed(Routes.adminIncome),
       ),
+
     ];
 
     return Column(
@@ -430,8 +432,8 @@ class _DesktopSidebar extends StatelessWidget {
               onTap: () => onSelect(3),
             ),
             _SideItem(
-              icon: Icons.settings_rounded,
-              title: 'Settings',
+              icon: Icons.payments_rounded,
+              title: 'Penghasilan',
               selected: selectedIndex == 4,
               onTap: () => onSelect(4),
             ),

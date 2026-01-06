@@ -1,3 +1,4 @@
+// lib/view_model/wallet_orders_controller.dart
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,7 +22,6 @@ class WalletOrdersController extends GetxController {
   final orders = <OrderModel>[].obs;
   final grouped = <String, List<OrderModel>>{}.obs;
 
-  // docId order received yang akan di-withdraw
   final receivedOrderDocIds = <String>[].obs;
 
   final isSubmitting = false.obs;
@@ -30,6 +30,8 @@ class WalletOrdersController extends GetxController {
   StreamSubscription? _receivedSub;
   StreamSubscription? _pendingSub;
 
+  String _sellerUid = '';
+
   @override
   void onInit() {
     super.onInit();
@@ -37,6 +39,7 @@ class WalletOrdersController extends GetxController {
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
       final uid = user?.uid ?? '';
       if (uid.isEmpty) {
+        _sellerUid = '';
         _receivedSub?.cancel();
         _pendingSub?.cancel();
 
@@ -57,13 +60,14 @@ class WalletOrdersController extends GetxController {
   }
 
   void bind(String sellerUid) {
+    _sellerUid = sellerUid;
+
     error.value = null;
     isLoading.value = true;
 
     _receivedSub?.cancel();
     _pendingSub?.cancel();
 
-    // IMPORTANT: pakai yang WITH DOC ID saja (sekalian untuk withdraw)
     _receivedSub = _repo
         .streamWalletReceivedWithDocId(sellerUid)
         .listen(
@@ -73,9 +77,10 @@ class WalletOrdersController extends GetxController {
             final list = entries.map((e) => e.value).toList();
             orders.assignAll(list);
 
+            // ✅ saldo masuk sudah dipotong 3% (net per seller)
             availableBalance.value = list.fold<int>(
               0,
-              (s, o) => s + o.subtotal,
+              (s, o) => s + o.netForSeller(sellerUid),
             );
 
             _rebuildGroups();
@@ -88,7 +93,11 @@ class WalletOrdersController extends GetxController {
         );
 
     _pendingSub = _repo.streamWalletPending(sellerUid).listen((list) {
-      pendingBalance.value = list.fold<int>(0, (s, o) => s + o.subtotal);
+      // pending juga pakai net (biar konsisten)
+      pendingBalance.value = list.fold<int>(
+        0,
+        (s, o) => s + o.netForSeller(sellerUid),
+      );
     }, onError: (e) {});
   }
 
@@ -107,11 +116,10 @@ class WalletOrdersController extends GetxController {
 
   bool get canWithdraw => availableBalance.value > 0;
 
-  // dipanggil dari WithdrawPage
   Future<void> withdrawAllSubmit({
     required String bank,
     required String accountNumber,
-    required String secretPassword, // password seller
+    required String secretPassword,
   }) async {
     if (!canWithdraw) {
       Get.snackbar('Info', 'Saldo tidak mencukupi.');
@@ -133,7 +141,7 @@ class WalletOrdersController extends GetxController {
       return;
     }
 
-    final amount = availableBalance.value;
+    final amount = availableBalance.value; // ✅ ini sudah net
     final docIds = receivedOrderDocIds.toList();
 
     try {

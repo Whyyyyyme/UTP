@@ -121,7 +121,7 @@ import 'package:prelovedly/pages/admin_pages/admin_users_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_products_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_product_detail_page.dart';
 import 'package:prelovedly/pages/admin_pages/admin_reports_page.dart';
-import 'package:prelovedly/pages/admin_pages/admin_settings_page.dart';
+import 'package:prelovedly/pages/admin_pages/admin_income_page.dart';
 
 // entry point
 import 'package:prelovedly/pages/entry_point_utp.dart';
@@ -972,9 +972,10 @@ class AppPages {
       }),
     ),
 
+
     GetPage(
-      name: Routes.adminSettings,
-      page: () => const AdminSettingsPage(),
+      name: Routes.adminIncome,
+      page: () => const AdminIncomePage(),
       binding: BindingsBuilder(() {
         _ensureAuth();
       }),

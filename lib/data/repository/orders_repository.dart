@@ -28,8 +28,6 @@ class OrdersRepository {
         .map((snap) => snap.docs.map((d) => OrderModel.fromDoc(d)).toList());
   }
 
-  // ===== WALLET: RECEIVED =====
-  // ✅ filter withdraw di client, null dianggap false
   Stream<List<OrderModel>> streamWalletReceived(String sellerAuthUid) {
     return _service.soldReceivedOrdersSnap(sellerAuthUid).snapshots().map((
       snap,
@@ -77,8 +75,35 @@ class OrdersRepository {
       if (buyerId != authUid) {
         throw Exception('Akses ditolak: bukan buyer order ini');
       }
-
       if (status == 'received') return;
+
+      int toInt(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
+
+      // ===== ambil subtotal (basis fee admin) =====
+      final subtotal = toInt(data['subtotal']);
+
+      // ===== seller list =====
+      final sellerUids = (data['seller_uids'] is List)
+          ? (data['seller_uids'] as List).map((e) => e.toString()).toList()
+          : <String>[];
+
+      if (sellerUids.isEmpty) {
+        throw Exception('Data order invalid: seller_uids kosong');
+      }
+
+      // ===== hitung fee admin 3% =====
+      const feeRatePercent = 3; // int percent (sesuai OrderModel)
+      final adminFee = ((subtotal * feeRatePercent) / 100).round();
+      final sellerNet = subtotal - adminFee;
+
+      // ===== map sesuai OrderModel =====
+      // catatan: kalau multi-seller tapi belum ada breakdown subtotal per seller,
+      // sementara kita anggap subtotal milik seller pertama.
+      final seller0 = sellerUids.first;
+
+      final sellerAmounts = <String, int>{seller0: subtotal};
+      final adminFeeAmounts = <String, int>{seller0: adminFee};
+      final sellerNetAmounts = <String, int>{seller0: sellerNet};
 
       final now = FieldValue.serverTimestamp();
 
@@ -87,11 +112,19 @@ class OrdersRepository {
         'received_at': now,
         'updated_at': now,
 
-        // ✅ optional: set default biar data konsisten
+        // ✅ default biar konsisten
         'is_withdrawn': (data['is_withdrawn'] ?? false),
+
+        // ✅ fee admin fields (sesuai OrderModel & rules)
+        'admin_fee_rate': feeRatePercent,
+        'seller_amounts': sellerAmounts,
+        'admin_fee_amounts': adminFeeAmounts,
+        'seller_net_amounts': sellerNetAmounts,
+        'admin_fee_total': adminFee,
       });
     });
   }
+
 
   Future<void> withdrawOrders({
     required List<String> orderDocIds,

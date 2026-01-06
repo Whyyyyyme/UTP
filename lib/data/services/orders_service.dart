@@ -29,20 +29,18 @@ class OrdersService {
   }
 
   // ✅ RECEIVED: jangan filter is_withdrawn di query
-  Query<Map<String, dynamic>> soldReceivedOrdersSnap(String sellerAuthUid) {
-    return db
-        .collection('orders')
-        .where('seller_uids', arrayContains: sellerAuthUid)
-        .where('status', isEqualTo: 'received')
-        .orderBy('created_at', descending: true);
+    Query<Map<String, dynamic>> soldReceivedOrdersSnap(String sellerUid) {
+    return ordersRef()
+        .where('seller_uids', arrayContains: sellerUid)
+        .where('status', isEqualTo: 'received');
+    // ✅ tidak pakai orderBy
+    // ✅ tidak pakai is_withdrawn filter (biar data lama tetap kebaca)
   }
 
-  // PENDING / PAID
-  Query<Map<String, dynamic>> soldPendingOrdersSnap(String sellerAuthUid) {
-    return db
-        .collection('orders')
-        .where('seller_uids', arrayContains: sellerAuthUid)
-        .where('status', isEqualTo: 'paid')
-        .orderBy('created_at', descending: true);
+  Query<Map<String, dynamic>> soldPendingOrdersSnap(String sellerUid) {
+    return ordersRef()
+        .where('seller_uids', arrayContains: sellerUid)
+        .where('status', isEqualTo: 'paid');
   }
+
 }
